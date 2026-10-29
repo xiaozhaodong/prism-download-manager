@@ -77,6 +77,8 @@ fn main() {
             spawn_event_forwarder(handle.clone(), core.clone());
 
             let settings = core.settings();
+            #[cfg(target_os = "macos")]
+            apply_dock_icon(&handle, &settings);
             if let Some(main) = app.get_webview_window("main") {
                 apply_window_material(&main, &settings);
                 let show = !background && !settings.general.start_minimized;
@@ -292,7 +294,42 @@ pub fn apply_shell_settings(app: &AppHandle, settings: &Settings) {
     if let Some(main) = app.get_webview_window("main") {
         apply_window_material(&main, settings);
     }
+    #[cfg(target_os = "macos")]
+    apply_dock_icon(app, settings);
     tray::refresh(app);
+}
+
+/// Whether the Dock icon is showing (macOS starts every app with one).
+#[cfg(target_os = "macos")]
+static DOCK_ICON_SHOWN: AtomicBool = AtomicBool::new(true);
+
+/// Shows or hides the Dock icon ("Show the Dock icon"). Only a change is applied: macOS turns the
+/// app into a menu-bar app and back, which shouldn't happen on every settings save.
+#[cfg(target_os = "macos")]
+fn apply_dock_icon(app: &AppHandle, settings: &Settings) {
+    let show = settings.general.show_dock_icon;
+    if DOCK_ICON_SHOWN.load(Ordering::SeqCst) == show {
+        return;
+    }
+    if let Err(e) = app.set_dock_visibility(show) {
+        tracing::warn!("could not change the Dock icon: {e}");
+        return;
+    }
+    DOCK_ICON_SHOWN.store(show, Ordering::SeqCst);
+    if show {
+        return;
+    }
+    // Losing the Dock icon deactivates the app (a moment later: macOS switches the app type
+    // asynchronously), so an open main window would drop behind other apps.
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        if let Some(main) = app.get_webview_window("main")
+            && main.is_visible().unwrap_or(false)
+        {
+            let _ = main.set_focus();
+        }
+    });
 }
 
 /// Dark or light Mica behind the window. With the theme following the system, it follows what

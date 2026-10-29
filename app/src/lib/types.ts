@@ -171,6 +171,8 @@ export interface Settings {
     launchAtStartup: boolean;
     startMinimized: boolean;
     closeToTray: boolean;
+    /** macOS: Prism's icon in the Dock (off = menu bar only). */
+    showDockIcon: boolean;
     showCaptureDialog: boolean;
     showProgressWindow: boolean;
     showCompletionDialog: boolean;
@@ -178,7 +180,7 @@ export interface Settings {
     confirmDelete: boolean;
     useTrash: boolean;
     checkUpdates: boolean;
-    /** UI language code ("en", "cs", …); "" = the system's language. */
+    /** UI language code ("en", "cs", …, "zh-CN"); "" = the system's language. */
     language: string;
     /** Finished downloads whose file was deleted from the computer leave the list. */
     removeDeletedFiles: boolean;

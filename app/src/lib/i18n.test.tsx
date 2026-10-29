@@ -76,6 +76,12 @@ describe("t()", () => {
     expect(resolveLanguage("xx", ["cs"])).toBe("en");
   });
 
+  it("matches only simplified Chinese to zh-CN", () => {
+    expect(resolveLanguage("zh-CN", ["de"])).toBe("zh-CN");
+    for (const tag of ["zh", "zh-CN", "zh_CN", "zh-SG", "zh-Hans", "zh-Hans-HK"]) expect(resolveLanguage("", [tag]), tag).toBe("zh-CN");
+    for (const tag of ["zh-TW", "zh-HK", "zh-Hant", "zh-Hant-CN"]) expect(resolveLanguage("", [tag, "fr"]), tag).toBe("fr");
+  });
+
   it("falls back to the English text and fills placeholders", () => {
     setLanguage("cs");
     expect(t("A text nobody translated {x}", { x: 5 })).toBe("A text nobody translated 5");

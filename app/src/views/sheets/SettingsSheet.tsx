@@ -38,6 +38,9 @@ export const SECTIONS: { id: string; label: string; icon: IconName; group?: bool
 
 const save = (patch: DeepPartial<Settings>) => void patchSettings(patch);
 
+/** The Dock exists only on macOS. */
+const IS_MAC = /Mac/i.test(navigator.userAgent);
+
 export function SettingsSheet({ section }: { section?: string }) {
   const [cur, setCur] = useState(section ?? "general");
   const [q, setQ] = useState("");
@@ -118,6 +121,14 @@ function SectionBody({ id, s }: { id: string; s: Settings }) {
             />
             <Toggle title={t("Start minimized")} value={s.general.startMinimized} onChange={(v) => save({ general: { startMinimized: v } })} />
             <Toggle title={t("Close button hides to the tray")} hint={t("Downloads keep running; quit from the tray menu")} value={s.general.closeToTray} onChange={(v) => save({ general: { closeToTray: v } })} />
+            {IS_MAC && (
+              <Toggle
+                title={t("Show the Dock icon")}
+                hint={t("Off = Prism lives in the menu bar only; open it from there or by opening Prism again")}
+                value={s.general.showDockIcon}
+                onChange={(v) => save({ general: { showDockIcon: v } })}
+              />
+            )}
           </Group>
           <Group title={t("Windows")}>
             <Toggle title={t("Show the Download File dialog")} hint={t("Off = new downloads start immediately with default settings")} value={s.general.showCaptureDialog} onChange={(v) => save({ general: { showCaptureDialog: v } })} />

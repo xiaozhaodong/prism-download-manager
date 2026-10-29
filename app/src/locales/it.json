@@ -504,6 +504,8 @@
   "Start minimized": "Avvia ridotto a icona",
   "Close button hides to the tray": "Il pulsante Chiudi riduce nell’area di notifica",
   "Downloads keep running; quit from the tray menu": "I download continuano; per uscire usa il menu dell’area di notifica",
+  "Show the Dock icon": "Mostra l’icona nel Dock",
+  "Off = Prism lives in the menu bar only; open it from there or by opening Prism again": "Disattivato = Prism resta solo nella barra dei menu; aprilo da lì o riaprendo Prism",
   "Windows": "Finestre",
   "Show the Download File dialog": "Mostra la finestra Scarica file",
   "Off = new downloads start immediately with default settings": "Disattivato = i nuovi download partono subito con le impostazioni predefinite",

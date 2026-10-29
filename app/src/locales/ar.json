@@ -553,6 +553,8 @@
   "Start minimized": "البدء مصغّرًا",
   "Close button hides to the tray": "زر الإغلاق يُخفي النافذة في منطقة الإعلام",
   "Downloads keep running; quit from the tray menu": "تستمر التنزيلات في العمل؛ للإنهاء استخدم قائمة منطقة الإعلام",
+  "Show the Dock icon": "إظهار الأيقونة في Dock",
+  "Off = Prism lives in the menu bar only; open it from there or by opening Prism again": "معطّل = يبقى Prism في شريط القوائم فقط؛ افتحه من هناك أو بفتح Prism مرة أخرى",
   "Windows": "النوافذ",
   "Show the Download File dialog": "إظهار نافذة «تنزيل ملف»",
   "Off = new downloads start immediately with default settings": "معطّل = تبدأ التنزيلات الجديدة فورًا بالإعدادات الافتراضية",

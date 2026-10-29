@@ -190,6 +190,13 @@
 [data-density="comfortable"] { --row-h: var(--row-h-comfortable); }
 [data-density="compact"] { --row-h: var(--row-h-compact); }
 
+/* Simplified Chinese: Inter for Latin and digits, then the system's Chinese UI font, so the
+   glyphs never come from a Japanese or Traditional Chinese fallback. */
+:root:lang(zh-CN) {
+  --font-sans: "Inter Variable", "Inter", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei",
+    "Noto Sans CJK SC", "Source Han Sans SC", system-ui, -apple-system, sans-serif;
+}
+
 /* --------------------------------------------------------------------------
    2. DARK theme (default)
    "Obsidian": near-black solids, cool neutral greys, glass for chrome.

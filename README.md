@@ -52,7 +52,7 @@ Free, open source, no ads, no accounts, no telemetry.
 | 🎬 **Video & music** | YouTube and [1,800+ sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md): MP4 up to 8K/HDR or MP3 only, with subtitles, chapters and SponsorBlock. |
 | 🧲 **Every protocol** | HTTP(S), FTP/FTPS, HLS and DASH streams, BitTorrent and magnet links. |
 | 🗂 **Organised** | Categories, queues with schedules and speed limits, "shut down when done", site grabber, batch downloads, clipboard monitor. |
-| 🌍 **Your language** | English, Czech, German, Spanish, French, Italian, Indonesian and Arabic. Prism follows your system's language, or pick one in Settings. |
+| 🌍 **Your language** | English, Czech, German, Spanish, French, Italian, Indonesian, Arabic and Simplified Chinese. Prism follows your system's language, or pick one in Settings. |
 | 🎨 **Gorgeous** | Liquid-glass design, dark & light themes, six accent colours, a mini window — and fast with thousands of downloads. |
 
 <p align="center">

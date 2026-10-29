@@ -483,6 +483,8 @@
   "Start minimized": "Mulai diminimalkan",
   "Close button hides to the tray": "Tombol Tutup menyembunyikan Prism ke baki sistem",
   "Downloads keep running; quit from the tray menu": "Unduhan tetap berjalan; keluar lewat menu baki sistem",
+  "Show the Dock icon": "Tampilkan ikon di Dock",
+  "Off = Prism lives in the menu bar only; open it from there or by opening Prism again": "Nonaktif = Prism hanya ada di bilah menu; buka dari sana atau dengan membuka Prism lagi",
   "Windows": "Jendela",
   "Show the Download File dialog": "Tampilkan dialog Unduh file",
   "Off = new downloads start immediately with default settings": "Nonaktif = unduhan baru langsung dimulai dengan pengaturan default",

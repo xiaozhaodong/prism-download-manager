@@ -517,6 +517,8 @@
   "Start minimized": "Spouštět minimalizovaně",
   "Close button hides to the tray": "Tlačítko Zavřít skryje okno do oznamovací oblasti",
   "Downloads keep running; quit from the tray menu": "Stahování poběží dál; ukončit lze z nabídky v oznamovací oblasti",
+  "Show the Dock icon": "Zobrazovat ikonu v Docku",
+  "Off = Prism lives in the menu bar only; open it from there or by opening Prism again": "Vypnuto = Prism zůstane jen v řádku nabídek; otevřete ho odtud, nebo Prism spusťte znovu",
   "Windows": "Okna",
   "Show the Download File dialog": "Zobrazovat dialog Stáhnout soubor",
   "Off = new downloads start immediately with default settings": "Vypnuto = nová stahování začnou ihned s výchozím nastavením",

@@ -504,6 +504,8 @@
   "Start minimized": "Démarrer réduit",
   "Close button hides to the tray": "Le bouton Fermer réduit dans la zone de notification",
   "Downloads keep running; quit from the tray menu": "Les téléchargements continuent ; pour quitter, utilisez le menu de la zone de notification",
+  "Show the Dock icon": "Afficher l’icône dans le Dock",
+  "Off = Prism lives in the menu bar only; open it from there or by opening Prism again": "Désactivé = Prism vit uniquement dans la barre des menus ; ouvrez-le depuis celle-ci ou en relançant Prism",
   "Windows": "Fenêtres",
   "Show the Download File dialog": "Afficher la fenêtre « Télécharger un fichier »",
   "Off = new downloads start immediately with default settings": "Désactivé = les nouveaux téléchargements démarrent aussitôt avec les paramètres par défaut",

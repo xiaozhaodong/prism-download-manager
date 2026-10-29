@@ -491,6 +491,8 @@
   "Start minimized": "Minimiert starten",
   "Close button hides to the tray": "Schließen minimiert in den Infobereich",
   "Downloads keep running; quit from the tray menu": "Downloads laufen weiter; Beenden über das Menü im Infobereich",
+  "Show the Dock icon": "Symbol im Dock anzeigen",
+  "Off = Prism lives in the menu bar only; open it from there or by opening Prism again": "Aus = Prism läuft nur in der Menüleiste; dort öffnen oder Prism erneut starten",
   "Windows": "Fenster",
   "Show the Download File dialog": "Dialog „Datei herunterladen“ anzeigen",
   "Off = new downloads start immediately with default settings": "Aus = neue Downloads starten sofort mit Standardeinstellungen",

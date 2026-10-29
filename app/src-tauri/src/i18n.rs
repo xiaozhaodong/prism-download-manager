@@ -36,13 +36,14 @@ fn lookup(lang: &str, key: &str) -> Option<&'static str> {
         "it" => 5,
         "id" => 6,
         "ar" => 7,
+        "zh-CN" => 8,
         _ => return None,
     };
     Some(row[column])
 }
 
-/// English, Czech, German, Spanish, French, Italian, Indonesian, Arabic.
-const TEXTS: &[[&str; 8]] = &[
+/// English, Czech, German, Spanish, French, Italian, Indonesian, Arabic, Simplified Chinese.
+const TEXTS: &[[&str; 9]] = &[
     [
         "Open Prism",
         "Otevřít Prism",
@@ -52,6 +53,7 @@ const TEXTS: &[[&str; 8]] = &[
         "Apri Prism",
         "Buka Prism",
         "فتح Prism",
+        "打开 Prism",
     ],
     [
         "Add URL…",
@@ -62,6 +64,7 @@ const TEXTS: &[[&str; 8]] = &[
         "Aggiungi URL…",
         "Tambah URL…",
         "إضافة رابط…",
+        "添加网址…",
     ],
     [
         "Pause all",
@@ -72,6 +75,7 @@ const TEXTS: &[[&str; 8]] = &[
         "Metti tutto in pausa",
         "Jeda semua",
         "إيقاف الكل مؤقتًا",
+        "全部暂停",
     ],
     [
         "Resume all",
@@ -82,6 +86,7 @@ const TEXTS: &[[&str; 8]] = &[
         "Riprendi tutto",
         "Lanjutkan semua",
         "استئناف الكل",
+        "全部继续",
     ],
     [
         "Speed limiter",
@@ -92,6 +97,7 @@ const TEXTS: &[[&str; 8]] = &[
         "Limitatore di velocità",
         "Pembatas kecepatan",
         "محدد السرعة",
+        "限速器",
     ],
     [
         "Mini window",
@@ -102,6 +108,7 @@ const TEXTS: &[[&str; 8]] = &[
         "Mini finestra",
         "Jendela mini",
         "نافذة مصغرة",
+        "迷你窗口",
     ],
     [
         "Drop zone",
@@ -112,6 +119,7 @@ const TEXTS: &[[&str; 8]] = &[
         "Area di rilascio",
         "Zona lepas",
         "منطقة الإفلات",
+        "拖放区",
     ],
     [
         "Quit Prism",
@@ -122,6 +130,7 @@ const TEXTS: &[[&str; 8]] = &[
         "Esci da Prism",
         "Keluar dari Prism",
         "إنهاء Prism",
+        "退出 Prism",
     ],
     [
         "Prism — idle",
@@ -132,6 +141,7 @@ const TEXTS: &[[&str; 8]] = &[
         "Prism — inattivo",
         "Prism — diam",
         "Prism — خامل",
+        "Prism — 空闲",
     ],
     [
         "Prism — {count} downloading · {speed}",
@@ -142,6 +152,7 @@ const TEXTS: &[[&str; 8]] = &[
         "Prism — {count} in download · {speed}",
         "Prism — {count} mengunduh · {speed}",
         "Prism — {count} قيد التنزيل · {speed}",
+        "Prism — {count} 个正在下载 · {speed}",
     ],
     [
         "Download added",
@@ -152,6 +163,7 @@ const TEXTS: &[[&str; 8]] = &[
         "Download aggiunto",
         "Unduhan ditambahkan",
         "تمت إضافة التنزيل",
+        "已添加下载",
     ],
     [
         "Download complete",
@@ -162,6 +174,7 @@ const TEXTS: &[[&str; 8]] = &[
         "Download completato",
         "Unduhan selesai",
         "اكتمل التنزيل",
+        "下载完成",
     ],
     [
         "Download failed",
@@ -172,6 +185,7 @@ const TEXTS: &[[&str; 8]] = &[
         "Download non riuscito",
         "Unduhan gagal",
         "فشل التنزيل",
+        "下载失败",
     ],
     [
         "Queue finished",
@@ -182,6 +196,7 @@ const TEXTS: &[[&str; 8]] = &[
         "Coda completata",
         "Antrean selesai",
         "انتهت قائمة الانتظار",
+        "队列已完成",
     ],
     [
         "{name} has no more downloads.",
@@ -192,6 +207,7 @@ const TEXTS: &[[&str; 8]] = &[
         "{name} non ha altri download.",
         "{name} tidak punya unduhan lagi.",
         "لم يعد في {name} أي تنزيلات.",
+        "{name} 中已没有待下载的任务。",
     ],
     [
         "Added to the list",
@@ -202,6 +218,7 @@ const TEXTS: &[[&str; 8]] = &[
         "Aggiunto all’elenco",
         "Ditambahkan ke daftar",
         "أضيف إلى القائمة",
+        "已添加到列表",
     ],
     [
         "Downloading in the browser",
@@ -212,6 +229,7 @@ const TEXTS: &[[&str; 8]] = &[
         "Download nel browser",
         "Mengunduh di browser",
         "يجري التنزيل في المتصفح",
+        "正在浏览器中下载",
     ],
     [
         "{host} lets only a web browser download this file, so the browser is downloading it.",
@@ -222,6 +240,7 @@ const TEXTS: &[[&str; 8]] = &[
         "{host} permette di scaricare questo file solo a un browser web, quindi lo sta scaricando il browser.",
         "{host} hanya mengizinkan browser web mengunduh file ini, jadi browser yang mengunduhnya.",
         "يسمح {host} لمتصفح الويب فقط بتنزيل هذا الملف، لذا يتولى المتصفح تنزيله.",
+        "{host} 只允许网页浏览器下载此文件，因此改由浏览器下载。",
     ],
 ];
 
@@ -259,6 +278,8 @@ mod tests {
         assert_eq!(tr("Something new", &[]), "Something new");
         set_language("en");
         assert_eq!(tr("Pause all", &[]), "Pause all");
+        set_language("zh-CN");
+        assert_eq!(tr("Pause all", &[]), "全部暂停");
         set_language("ja");
         assert_eq!(tr("Pause all", &[]), "Pause all");
     }

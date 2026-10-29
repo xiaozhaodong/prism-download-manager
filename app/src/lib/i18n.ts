@@ -17,6 +17,7 @@ import es from "../locales/es.json";
 import fr from "../locales/fr.json";
 import id from "../locales/id.json";
 import it from "../locales/it.json";
+import zhCN from "../locales/zh-CN.json";
 
 export type PluralEntry = Partial<Record<Intl.LDMLPluralRule, string>>;
 export type Catalog = Record<string, string | PluralEntry>;
@@ -31,11 +32,15 @@ export const LANGUAGES = [
   { code: "id", name: "Bahasa Indonesia" },
   { code: "it", name: "Italiano" },
   { code: "ar", name: "العربية" },
+  { code: "zh-CN", name: "简体中文" },
 ] as const;
 
 export type Language = (typeof LANGUAGES)[number]["code"];
 
-export const CATALOGS: Record<Language, Catalog> = { en, cs, de, es, fr, id, it, ar };
+export const CATALOGS: Record<Language, Catalog> = { en, cs, de, es, fr, id, it, ar, "zh-CN": zhCN };
+
+/** Chinese written in simplified characters (zh, zh-CN, zh-SG, zh-Hans…); zh-TW / zh-HK / zh-Hant don't match. */
+const SIMPLIFIED_CHINESE = /^zh(?:-(?:hans|cn|sg)(?:-|$)|$)/;
 
 /** Languages written right to left: the whole layout mirrors (`<html dir="rtl">`). */
 const RTL: readonly Language[] = ["ar"];
@@ -45,7 +50,11 @@ let plurals = new Intl.PluralRules("en");
 
 /** The language to use for a setting value ("" = the system's language, else English). */
 export function resolveLanguage(setting: string | undefined, preferred: readonly string[] = navigatorLanguages()): Language {
-  const known = (code: string) => LANGUAGES.find((l) => l.code === code.toLowerCase().split(/[-_]/)[0])?.code;
+  const known = (code: string): Language | undefined => {
+    const tag = code.toLowerCase().replace(/_/g, "-");
+    if (SIMPLIFIED_CHINESE.test(tag)) return "zh-CN";
+    return LANGUAGES.find((l) => l.code === tag.split("-")[0])?.code;
+  };
   if (setting) return known(setting) ?? "en";
   for (const p of preferred) {
     const k = known(p);
