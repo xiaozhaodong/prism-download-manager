@@ -75,16 +75,24 @@ jobs:
           # Unset secrets that are not configured: an empty APPLE_CERTIFICATE would make the
           # bundler try (and fail) to import a signing certificate. Without them the macOS app
           # gets an ad-hoc signature (bundle.macOS.signingIdentity = "-").
-          for v in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+          for v in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD; do
             [ -n "${!v}" ] || unset "$v"
           done
-          # Signed in-app update bundles only for official releases (needs the signing key).
-          npx tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} --config '{"bundle":{"createUpdaterArtifacts":true}}'
+          # Signed in-app update bundles only for official releases (needs the signing key). A
+          # repository without the key (a fork) builds the installers alone.
+          if [ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then
+            npx tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} --config '{"bundle":{"createUpdaterArtifacts":true}}'
+          else
+            echo "::notice::No TAURI_SIGNING_PRIVATE_KEY: building without in-app update bundles."
+            npx tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+          fi
       - name: Name the macOS update bundle per architecture
         if: runner.os == 'macOS'
         run: |
           set -euo pipefail
           M=target/${{ matrix.target }}/release/bundle/macos
+          # Built without the signing key: there is no update bundle to name.
+          [ -f "$M/Prism.app.tar.gz" ] || exit 0
           V=$(node -p "require('./app/src-tauri/tauri.conf.json').version")
           A=$([ "${{ matrix.target }}" = aarch64-apple-darwin ] && echo aarch64 || echo x64)
           mv "$M/Prism.app.tar.gz" "$M/Prism_${V}_${A}.app.tar.gz"
