@@ -21,6 +21,26 @@ pub struct SmallFile {
     pub mime: Option<String>,
 }
 
+/// Any answer to a [`fetch_small`] request, error statuses included.
+#[derive(Debug, Clone)]
+pub struct SmallResponse {
+    /// The HTTP status.
+    pub status: u16,
+    /// The response headers.
+    pub headers: reqwest::header::HeaderMap,
+    /// The body; an error page longer than the limit is cut at it.
+    pub bytes: Vec<u8>,
+    /// Where the request ended up after redirects.
+    pub final_url: Url,
+}
+
+impl SmallResponse {
+    /// A header as text.
+    pub fn header(&self, name: &str) -> Option<&str> {
+        self.headers.get(name).and_then(|v| v.to_str().ok())
+    }
+}
+
 /// GETs `req.url` with its headers, cookies, referer, user agent and proxy, and returns the
 /// body when it is at most `max` bytes.
 pub async fn fetch_small_file(
@@ -28,6 +48,29 @@ pub async fn fetch_small_file(
     req: &DownloadRequest,
     max: usize,
 ) -> Result<SmallFile, EngineError> {
+    let resp = fetch_small(cfg, req, max).await?;
+    if !(200..300).contains(&resp.status) {
+        return Err(match resp.status {
+            401 | 407 => EngineError::AuthRequired,
+            s => EngineError::Http { status: s },
+        });
+    }
+    let mime = resp.header("content-type").map(str::to_string);
+    Ok(SmallFile {
+        bytes: resp.bytes,
+        final_url: resp.final_url,
+        mime,
+    })
+}
+
+/// Like [`fetch_small_file`], but returns the server's answer whatever its status (an API's
+/// error codes and messages come in the headers and body of a 4xx answer). A successful body
+/// longer than `max` bytes is an error.
+pub async fn fetch_small(
+    cfg: &EngineConfig,
+    req: &DownloadRequest,
+    max: usize,
+) -> Result<SmallResponse, EngineError> {
     let spec = ClientSpec {
         proxy: req
             .proxy
@@ -55,24 +98,15 @@ pub async fn fetch_small_file(
         .await
         .map_err(|e| EngineError::network(error_chain(&e)))?;
     let status = resp.status().as_u16();
-    if !(200..300).contains(&status) {
-        return Err(match status {
-            401 | 407 => EngineError::AuthRequired,
-            s => EngineError::Http { status: s },
-        });
-    }
+    let ok = (200..300).contains(&status);
     let too_large = || EngineError::Unsupported {
         message: "the file is too large".into(),
     };
-    if resp.content_length().is_some_and(|l| l > max as u64) {
+    if ok && resp.content_length().is_some_and(|l| l > max as u64) {
         return Err(too_large());
     }
     let final_url = resp.url().clone();
-    let mime = resp
-        .headers()
-        .get(reqwest::header::CONTENT_TYPE)
-        .and_then(|v| v.to_str().ok())
-        .map(str::to_string);
+    let headers = resp.headers().clone();
     let mut bytes = Vec::new();
     while let Some(chunk) = resp
         .chunk()
@@ -80,13 +114,18 @@ pub async fn fetch_small_file(
         .map_err(|e| EngineError::network(error_chain(&e)))?
     {
         if bytes.len() + chunk.len() > max {
-            return Err(too_large());
+            if ok {
+                return Err(too_large());
+            }
+            bytes.extend_from_slice(&chunk[..max - bytes.len()]);
+            break;
         }
         bytes.extend_from_slice(&chunk);
     }
-    Ok(SmallFile {
+    Ok(SmallResponse {
+        status,
+        headers,
         bytes,
         final_url,
-        mime,
     })
 }

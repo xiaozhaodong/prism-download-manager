@@ -116,6 +116,55 @@ export interface TorrentMeta {
 
 export type TorrentSource = { type: "url"; value: string } | { type: "file"; value: string };
 
+/** A model (or dataset) on Hugging Face and its files (#29). */
+export type HfKind = "model" | "dataset";
+export interface HfFile {
+  path: string;
+  size: number;
+  sha256?: string | null;
+}
+export interface HfVariant {
+  label: string;
+  files: string[];
+  size: number;
+}
+export interface HfRepo {
+  kind: HfKind;
+  id: string;
+  sha: string;
+  revision: string;
+  gated: boolean;
+  private: boolean;
+  downloads?: number | null;
+  likes?: number | null;
+  pipelineTag?: string | null;
+  library?: string | null;
+  gguf: boolean;
+  files: HfFile[];
+  path?: string | null;
+  pageUrl: string;
+  folder: string;
+  suggestion: { variants: HfVariant[]; variant?: string | null; extras: string[]; files: string[] };
+}
+export interface HfHit {
+  id: string;
+  downloads?: number | null;
+  likes?: number | null;
+  pipelineTag?: string | null;
+  gguf: boolean;
+  gated: boolean;
+}
+export interface HfContext {
+  endpoint: string;
+  token?: "settings" | "environment" | "login" | null;
+  folder: string;
+  lmStudio?: string | null;
+}
+export interface HfPresent {
+  onDisk: string[];
+  listed: string[];
+}
+
 export const api = {
   bootstrap: () => invoke<Bootstrap>("bootstrap"),
   updateSettings: (patch: unknown) => invoke<Settings>("update_settings", { patch }),
@@ -146,6 +195,13 @@ export const api = {
 
   inspectTorrent: (source: TorrentSource) => invoke<TorrentMeta>("inspect_torrent", { source }),
   readTorrentFile: (path: string) => invoke<TorrentSource>("read_torrent_file", { path }),
+  hfContext: () => invoke<HfContext>("hf_context"),
+  /** Rejects with a code: `hf:notFound`, `hf:needsToken`, `hf:badToken`, `hf:gated`, `hf:rateLimited`, `hf:server`, `hf:network`. */
+  hfRepo: (input: string) => invoke<HfRepo>("hf_repo", { input }),
+  hfSearch: (query: string) => invoke<HfHit[]>("hf_search", { query }),
+  hfPresent: (args: { kind: HfKind; id: string; sha: string; folder: string; files: HfFile[] }) => invoke<HfPresent>("hf_present", { args }),
+  /** `mode` null: the "Hugging Face" queue, started. */
+  hfAdd: (args: { kind: HfKind; id: string; sha: string; files: HfFile[]; folder: string; mode: StartMode | null }) => invoke<number>("hf_add", { args }),
   addTorrent: (args: {
     source: TorrentSource;
     name: string;
@@ -221,6 +277,8 @@ export const api = {
   showMain: () => invoke<void>("show_main"),
   mainWindowStartsVisible: () => invoke<boolean>("main_window_starts_visible"),
   appRunId: () => invoke<number>("app_run_id"),
+  /** Whether the OS puts a material (Mica / vibrancy) behind the window. */
+  nativeMaterial: () => invoke<boolean>("native_material"),
   setUiLanguage: (language: string) => invoke<void>("set_ui_language", { language }),
   removeDeletedFiles: () => invoke<number>("remove_deleted_files"),
   setAutostart: (enabled: boolean) => invoke<boolean>("set_autostart", { enabled }),

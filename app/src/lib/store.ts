@@ -75,7 +75,8 @@ export const useApp = create<AppState>((set, get) => ({
 
   init: async () => {
     if (get().ready) return;
-    const boot: Bootstrap = await api.bootstrap();
+    const [boot, native]: [Bootstrap, boolean] = await Promise.all([api.bootstrap(), api.nativeMaterial().catch(() => true)]);
+    nativeMaterial = native;
     const items: Record<string, DownloadItem> = {};
     for (const i of boot.items) items[i.id] = i;
     set({
@@ -171,6 +172,13 @@ function handleEvent(e: CoreEvent) {
 }
 
 /** Reflect appearance settings on <html> (theme, accent, density, glass, motion). */
+/**
+ * Whether the OS puts a material behind the window (Mica on Windows 11, vibrancy on macOS).
+ * Without one (Linux, Windows 10) the window keeps its own background: a see-through canvas would
+ * show the desktop, whatever it looks like, behind the light or dark theme.
+ */
+let nativeMaterial = true;
+
 export function applyAppearance(s: Settings) {
   const root = document.documentElement;
   const a = s.appearance;
@@ -183,7 +191,7 @@ export function applyAppearance(s: Settings) {
   const reduced =
     a.motion === "reduced" || (a.motion === "system" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
   root.classList.toggle("reduce-motion", !!reduced);
-  root.classList.toggle("window-material", a.windowMaterial);
+  root.classList.toggle("window-material", a.windowMaterial && nativeMaterial);
 }
 
 if (typeof window !== "undefined") {

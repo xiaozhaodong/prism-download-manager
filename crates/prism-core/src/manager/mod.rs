@@ -16,6 +16,7 @@ pub use capture::{
     VideoEntry,
 };
 pub use jobs::ItemDetails;
+pub(crate) use jobs::{engine_config, http_preference, proxy_config};
 
 use crate::categories;
 use crate::db::Db;
@@ -1206,6 +1207,9 @@ impl Core {
             .compression_method(zip::CompressionMethod::Deflated);
         let mut settings = self.settings();
         settings.proxy.password = String::new();
+        if !settings.hugging_face.token.is_empty() {
+            settings.hugging_face.token = "(set)".into();
+        }
         zip.start_file("settings.json", opts)?;
         zip.write_all(serde_json::to_string_pretty(&settings)?.as_bytes())?;
         let summary: Vec<serde_json::Value> = {

@@ -48,12 +48,25 @@ fn spec(kind: &str) -> Spec {
             ..s(700.0, 420.0, false, true, "Downloading")
         },
         "torrent" => s(680.0, 600.0, true, true, "Add Torrent"),
+        "model" => Spec {
+            min_size: Some((600.0, 520.0)),
+            ..s(760.0, 680.0, false, true, "Download Model")
+        },
         "addurl" => s(600.0, 300.0, true, false, "Add URL"),
         "mini" => s(360.0, 220.0, true, false, "Prism Mini"),
         "dropzone" => s(112.0, 112.0, true, false, "Prism Drop Zone"),
         _ => s(720.0, 560.0, false, true, "Prism"),
     }
 }
+
+/// Windows are shown as soon as they are created, not after the page's first paint:
+/// * macOS: WKWebView doesn't render into a hidden window.
+/// * Linux (#30): a WebKitGTK window that goes from hidden to shown sometimes stays blank on KDE
+///   Plasma (#18 was the same for a window shown again from the tray). The windows are
+///   transparent, so one shown before its page paints has nothing to flash.
+///
+/// Windows (WebView2) keeps them hidden until the first paint, so no white frame shows.
+pub const SHOW_ON_CREATE: bool = cfg!(any(target_os = "macos", target_os = "linux"));
 
 /// Open (or focus) a window for `kind` with an optional entity id.
 pub fn open(app: &AppHandle, kind: &str, id: Option<&str>) -> tauri::Result<WebviewWindow> {
@@ -90,10 +103,9 @@ pub fn open(app: &AppHandle, kind: &str, id: Option<&str>) -> tauri::Result<Webv
         .shadow(false)
         .always_on_top(sp.always_on_top)
         .skip_taskbar(matches!(kind, "mini" | "dropzone"))
-        // Windows/Linux: hidden until the page has painted (no white flash). macOS: WKWebView
-        // doesn't render into a hidden window, so the transparent window is shown right away.
-        // (Corner windows are positioned first and shown below.)
-        .visible(cfg!(target_os = "macos") && !matches!(kind, "mini" | "dropzone"))
+        // Windows: hidden until the page has painted (no white flash). macOS and Linux: shown
+        // right away (see `SHOW_ON_CREATE`). Corner windows are positioned first and shown below.
+        .visible(SHOW_ON_CREATE && !matches!(kind, "mini" | "dropzone"))
         // HTML5 drag & drop (links from the browser) instead of Tauri's file-only handler.
         .disable_drag_drop_handler()
         .focused(!matches!(kind, "mini" | "dropzone"));
@@ -105,8 +117,9 @@ pub fn open(app: &AppHandle, kind: &str, id: Option<&str>) -> tauri::Result<Webv
     let window = builder.build()?;
     if matches!(kind, "mini" | "dropzone") {
         place_bottom_right(&window, kind == "dropzone");
-        #[cfg(target_os = "macos")]
-        let _ = window.show();
+        if SHOW_ON_CREATE {
+            let _ = window.show();
+        }
     }
     bring_app_forward(app, kind);
     // The page calls `show()` itself once it has rendered (no white flash). A webview that
@@ -258,9 +271,11 @@ fn create_main(app: &AppHandle) {
             Ok(window) => {
                 tracing::info!("opened the main window again");
                 crate::apply_window_material(&window, &app.state::<Core>().settings());
-                // WKWebView doesn't paint into a hidden window (see main.rs).
-                #[cfg(target_os = "macos")]
-                let _ = window.show();
+                // macOS and Linux show it now (see `SHOW_ON_CREATE`).
+                if SHOW_ON_CREATE {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
                 // The page shows the window after its first paint; this is only a fallback.
                 std::thread::sleep(Duration::from_millis(1500));
                 if !window.is_visible().unwrap_or(true) {

@@ -2,13 +2,15 @@ import { useEffect } from "react";
 import { BrandTile } from "../../components/LogoMark";
 import { Icon, type IconName } from "../../design/icons";
 import { patchSettings } from "../../lib/actions";
+import { api } from "../../lib/api";
 import { t, tk } from "../../lib/i18n";
+import { openUrl, REPO_URL } from "../../lib/links";
 import { useApp } from "../../lib/store";
 import { useUi } from "../../lib/ui";
 import { versionNewer } from "../../lib/version";
 import { BrowserConnect, useExtensionStatus } from "../BrowserConnect";
 
-type Change = { icon: IconName; title: string; body: string; credit?: string; action?: "sounds" | "language" | "appearance" };
+type Change = { icon: IconName; title: string; body: string; credit?: string; action?: "sounds" | "language" | "appearance" | "model" };
 
 /**
  * What this version brings (shown once after an update, and from About Prism), then what the
@@ -16,6 +18,33 @@ type Change = { icon: IconName; title: string; body: string; credit?: string; ac
  * where they're shown; `credit` is the contributor's handle.
  */
 const CHANGES: Change[] = [
+  {
+    icon: "model",
+    title: tk("AI models from Hugging Face"),
+    body: tk("Download a model by its name, a link or a search. Prism picks the files you need (one GGUF version, the weights in one format) and downloads them over many connections, checked against Hugging Face."),
+    credit: "Vasili-Sk",
+    action: "model",
+  },
+  {
+    icon: "globe",
+    title: tk("Turkish"),
+    body: tk("Prism now speaks Turkish too."),
+    action: "language",
+  },
+  {
+    icon: "monitor",
+    title: tk("Windows on Linux"),
+    body: tk("On KDE Plasma, Prism's windows no longer sometimes open empty."),
+  },
+  {
+    icon: "sun",
+    title: tk("Background that matches the theme"),
+    body: tk("On Linux the window no longer shows the desktop through it, and on Windows the glass switches too when Windows changes between light and dark."),
+  },
+];
+
+/** The previous version's changes, shown below the new ones. */
+const PREVIOUS = { version: "1.1.6", changes: [
   {
     icon: "sun",
     title: tk("Light theme"),
@@ -31,15 +60,6 @@ const CHANGES: Change[] = [
     title: tk("VK and YouTube videos"),
     body: tk("The Download video button works on vk.ru and vkvideo.ru, and videos from a browser signed in to YouTube no longer fail."),
     credit: "BiparJoy",
-  },
-];
-
-/** The previous version's changes, shown below the new ones. */
-const PREVIOUS = { version: "1.1.5", changes: [
-  {
-    icon: "torrent",
-    title: tk("Torrent links from the browser"),
-    body: tk("A click on a link to a .torrent file now opens “Add torrent”, where you pick its files, instead of failing."),
   },
 ] satisfies Change[] };
 
@@ -57,7 +77,7 @@ export function WhatsNewSheet() {
         <BrandTile size={52} />
         <div>
           <h2>{t("Prism {version} is here", { version })}</h2>
-          <p className="text-secondary">{t("Fixes for the light theme, Brave Origin, VK and YouTube.")}</p>
+          <p className="text-secondary">{t("AI models from Hugging Face, Turkish, and a fix for Linux.")}</p>
         </div>
       </header>
 
@@ -88,6 +108,15 @@ export function WhatsNewSheet() {
       <ChangeList changes={CHANGES} />
       <h3 className="whatsnew__older t-small text-tertiary">{t("New in Prism {version}", { version: PREVIOUS.version })}</h3>
       <ChangeList changes={PREVIOUS.changes} />
+      <p className="whatsnew__star t-small text-secondary">
+        <Icon name="star" size={14} className="text-accent" />
+        <span>
+          {t("Enjoying Prism? A star on GitHub helps more people find it.")}{" "}
+          <button type="button" className="linkbtn" onClick={() => void openUrl(REPO_URL)}>
+            {t("Star on GitHub")}
+          </button>
+        </span>
+      </p>
     </div>
   );
 }
@@ -113,6 +142,11 @@ function ChangeList({ changes }: { changes: Change[] }) {
               )}
               {c.action === "appearance" && (
                 <button type="button" className="linkbtn" onClick={() => openSheet({ kind: "settings", section: "appearance" })}>
+                  {t("Try it")}
+                </button>
+              )}
+              {c.action === "model" && (
+                <button type="button" className="linkbtn" onClick={() => void api.openWindow("model")}>
                   {t("Try it")}
                 </button>
               )}

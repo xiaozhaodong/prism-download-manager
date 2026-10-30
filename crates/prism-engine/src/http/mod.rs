@@ -162,6 +162,14 @@ impl Sources {
         self.lock().mirrors.iter().map(|m| m.url.clone()).collect()
     }
 
+    /// Whether `url` is on the site of the download's own link or of one of its mirrors (not
+    /// on a server one of them redirected to).
+    pub(crate) fn is_own_site(&self, url: &Url) -> bool {
+        let g = self.lock();
+        let origin = url.origin();
+        g.original.origin() == origin || g.mirrors.iter().any(|m| m.url.origin() == origin)
+    }
+
     /// Replaces the primary URL (change_url).
     pub(crate) fn replace_primary(&self, url: Url, final_url: Option<Url>) {
         let mut g = self.lock();

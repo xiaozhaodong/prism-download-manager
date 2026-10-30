@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { Icon } from "../design/icons";
 import { api, inTauri, onAppEvent, type UpdateInfo } from "../lib/api";
 import { t } from "../lib/i18n";
+import { openUrl } from "../lib/links";
 import { useApp } from "../lib/store";
 import { toast } from "../lib/ui";
 import { scheduleUpdateChecks, windowEnv } from "../lib/update-schedule";
@@ -62,15 +63,6 @@ export async function checkForUpdates(manual = false): Promise<void> {
     if (manual && !info) toast(t("Prism is up to date"), { kind: "success", ms: 2500 });
   } catch (e) {
     if (manual) toast(t("Couldn't check for updates"), { kind: "error", body: String(e) });
-  }
-}
-
-async function openUrl(url: string) {
-  if (inTauri) {
-    const opener = await import("@tauri-apps/plugin-opener");
-    await opener.openUrl(url);
-  } else {
-    window.open(url, "_blank", "noopener");
   }
 }
 

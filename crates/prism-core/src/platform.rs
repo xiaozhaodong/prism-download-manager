@@ -181,19 +181,35 @@ mod imp {
         let mut guard = INHIBITOR.lock().unwrap_or_else(|e| e.into_inner());
         match (on, guard.is_some()) {
             (true, false) => {
+                // The lock is held by `tail --pid`, which ends with Prism: a crashed or killed
+                // Prism doesn't leave the computer unable to sleep (`sleep infinity` did).
+                let pid = std::process::id().to_string();
                 *guard = Command::new("systemd-inhibit")
                     .args([
                         "--what=sleep",
                         "--who=Prism",
                         "--why=Downloads in progress",
-                        "sleep",
-                        "infinity",
+                        "tail",
+                        "--pid",
+                        &pid,
+                        "-f",
+                        "/dev/null",
                     ])
+                    .stdin(std::process::Stdio::null())
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null())
                     .spawn()
                     .ok();
             }
             (false, true) => {
                 if let Some(mut child) = guard.take() {
+                    // Ending `tail` ends systemd-inhibit and its lock; killing only
+                    // systemd-inhibit would leave `tail` running until Prism quits.
+                    let _ = Command::new("pkill")
+                        .args(["-P", &child.id().to_string()])
+                        .stdout(std::process::Stdio::null())
+                        .stderr(std::process::Stdio::null())
+                        .status();
                     let _ = child.kill();
                     let _ = child.wait();
                 }
@@ -229,7 +245,16 @@ mod imp {
     pub fn set_keep_awake(on: bool) {
         let mut guard = CAFFEINATE.lock().unwrap_or_else(|e| e.into_inner());
         match (on, guard.is_some()) {
-            (true, false) => *guard = Command::new("caffeinate").arg("-i").spawn().ok(),
+            // `-w`: caffeinate ends with Prism, so a crashed Prism doesn't keep the Mac awake.
+            (true, false) => {
+                *guard = Command::new("caffeinate")
+                    .args(["-i", "-w", &std::process::id().to_string()])
+                    .stdin(std::process::Stdio::null())
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null())
+                    .spawn()
+                    .ok()
+            }
             (false, true) => {
                 if let Some(mut child) = guard.take() {
                     let _ = child.kill();

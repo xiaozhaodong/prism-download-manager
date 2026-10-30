@@ -51,8 +51,9 @@ Free, open source, no ads, no accounts, no telemetry.
 | 🌐 **Lives in your browser** | Chrome, Edge, Brave, Opera, Vivaldi and Firefox. Downloads jump into Prism in about a quarter of a second. |
 | 🎬 **Video & music** | YouTube and [1,800+ sites](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md): MP4 up to 8K/HDR or MP3 only, with subtitles, chapters and SponsorBlock. |
 | 🧲 **Every protocol** | HTTP(S), FTP/FTPS, HLS and DASH streams, BitTorrent and magnet links. |
+| 🤖 **AI models** | Download models from [Hugging Face](https://huggingface.co) by name, link or search. Prism picks the files you need (one GGUF version, the weights in one format), downloads them over many connections and checks each against its SHA-256. Gated models, mirrors like hf-mirror.com and LM Studio's folder work too. |
 | 🗂 **Organised** | Categories, queues with schedules and speed limits, "shut down when done", site grabber, batch downloads, clipboard monitor. |
-| 🌍 **Your language** | English, Czech, German, Spanish, French, Italian, Indonesian, Arabic and Simplified Chinese. Prism follows your system's language, or pick one in Settings. |
+| 🌍 **Your language** | English, Czech, German, Spanish, French, Italian, Indonesian, Turkish, Arabic and Simplified Chinese. Prism follows your system's language, or pick one in Settings. |
 | 🎨 **Gorgeous** | Liquid-glass design, dark & light themes, six accent colours, a mini window — and fast with thousands of downloads. |
 
 <p align="center">
@@ -181,6 +182,15 @@ means neither works reliably.
 Every site supported by [yt-dlp](https://github.com/yt-dlp/yt-dlp), which Prism installs and
 keeps up to date for you (together with ffmpeg). Please download only content you have the
 right to download.
+</details>
+
+<details><summary><b>How do I download a model from Hugging Face?</b></summary>
+
+Click the model button in the toolbar (or paste a model's name like `Qwen/Qwen3-8B`, or its link,
+into *Add URL*). Pick a version if the model has several, and click *Download*: the files go into
+the *Hugging Face* queue. For gated or private models, add an access token in Settings › AI models
+(Prism also uses the one `hf auth login` saved). The token is sent only to Hugging Face, never to
+the servers the files come from.
 </details>
 
 <details><summary><b>Does it work on Linux Flatpak/Snap browsers?</b></summary>

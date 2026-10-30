@@ -5,6 +5,7 @@ import { Modal } from "../components/Modal";
 import { Icon } from "../design/icons";
 import { patchSettings } from "../lib/actions";
 import { t, tr } from "../lib/i18n";
+import { openUrl, REPO_URL } from "../lib/links";
 import { useApp } from "../lib/store";
 import { pickFolder } from "../lib/win";
 import { BrowserConnect, useExtensionStatus } from "./BrowserConnect";
@@ -155,6 +156,33 @@ function Ready() {
           ),
         })}
       </p>
+      <StarCard />
+    </div>
+  );
+}
+
+/** A friendly, skippable ask: Prism is free, and stars on GitHub help people find it. */
+function StarCard() {
+  const [thanks, setThanks] = useState(false);
+  return (
+    <div className="onboard__star card">
+      <span className="onboard__staricon" aria-hidden="true">
+        <Icon name="star" size={18} />
+      </span>
+      <div className="onboard__startxt">
+        <b>{thanks ? t("Thank you!") : t("Like Prism?")}</b>
+        <span className="t-small text-secondary">{t("It’s free and open source. A star on GitHub helps more people find it.")}</span>
+      </div>
+      <button
+        type="button"
+        className="btn btn--sm"
+        onClick={() => {
+          setThanks(true);
+          void openUrl(REPO_URL);
+        }}
+      >
+        <Icon name="star" size={14} /> {t("Star on GitHub")}
+      </button>
     </div>
   );
 }

@@ -12,6 +12,7 @@ export const WINDOW_SIZES: Record<string, [number, number]> = {
   complete: [500, 300],
   details: [760, 600],
   torrent: [680, 600],
+  model: [760, 680],
   addurl: [600, 300],
   mini: [360, 220],
   dropzone: [112, 112],

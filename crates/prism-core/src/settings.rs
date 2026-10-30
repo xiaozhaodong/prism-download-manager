@@ -22,10 +22,25 @@ pub struct Settings {
     pub grabber: Grabber,
     pub antivirus: Antivirus,
     pub video: Video,
+    pub hugging_face: HuggingFace,
     pub shortcuts: BTreeMap<String, String>,
     pub onboarding_done: bool,
     /// The app version whose "What's new" the user has seen ("" before 1.1.0).
     pub last_seen_version: String,
+}
+
+/// Downloading models from Hugging Face (see `crate::huggingface`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(default, rename_all = "camelCase")]
+pub struct HuggingFace {
+    /// The server: "" = `HF_ENDPOINT` if it is set, else huggingface.co. Otherwise a URL like
+    /// `https://hf-mirror.com`.
+    pub endpoint: String,
+    /// Access token for gated and private models ("" = the one `hf auth login` saved, if any).
+    /// Sent only to the server above, never to the download servers it redirects to.
+    pub token: String,
+    /// Where models go, each in `<owner>/<name>` below it ("" = `Models` in the download folder).
+    pub folder: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -49,7 +64,8 @@ pub struct General {
     pub check_updates: bool,
     /// Finished downloads whose file was deleted from the computer leave the list (off by default).
     pub remove_deleted_files: bool,
-    /// UI language code ("en", "cs", "de", …, "zh-CN"); empty = the system's language.
+    /// UI language code ("en", "cs", "de", "es", "fr", "it", "id", "tr", "ar", "zh-CN"); empty =
+    /// the system's language.
     pub language: String,
 }
 

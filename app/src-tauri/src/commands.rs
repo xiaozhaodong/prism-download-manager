@@ -231,6 +231,67 @@ pub async fn add_torrent(core: State<'_, Core>, args: AddTorrentArgs) -> CmdResu
     .map_err(err)
 }
 
+// ----- Hugging Face models (#29) ------------------------------------------------------------
+
+/// Whether the OS puts a material (Mica / vibrancy) behind the window (see main.rs).
+#[tauri::command]
+pub fn native_material() -> bool {
+    crate::native_material_supported()
+}
+
+#[tauri::command]
+pub async fn hf_context(core: State<'_, Core>) -> CmdResult<prism_core::huggingface::Context> {
+    Ok(core.hf_context())
+}
+
+/// Errors are codes the window explains (`hf:notFound`, `hf:needsToken`, …).
+#[tauri::command]
+pub async fn hf_repo(
+    core: State<'_, Core>,
+    input: String,
+) -> CmdResult<prism_core::huggingface::Repo> {
+    core.hf_repo(&input).await.map_err(err)
+}
+
+#[tauri::command]
+pub async fn hf_search(
+    core: State<'_, Core>,
+    query: String,
+) -> CmdResult<Vec<prism_core::huggingface::Hit>> {
+    core.hf_search(&query).await.map_err(err)
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HfPresentArgs {
+    kind: prism_core::huggingface::RepoKind,
+    id: String,
+    sha: String,
+    folder: PathBuf,
+    files: Vec<prism_core::huggingface::RepoFile>,
+}
+
+#[tauri::command]
+pub async fn hf_present(
+    core: State<'_, Core>,
+    args: HfPresentArgs,
+) -> CmdResult<prism_core::huggingface::Present> {
+    let core = core.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        core.hf_present(args.kind, &args.id, &args.sha, &args.folder, &args.files)
+    })
+    .await
+    .map_err(err)
+}
+
+#[tauri::command]
+pub async fn hf_add(
+    core: State<'_, Core>,
+    args: prism_core::huggingface::AddModel,
+) -> CmdResult<usize> {
+    core.hf_add(args).map_err(err)
+}
+
 // ----- item control -----------------------------------------------------------------------
 
 #[tauri::command]

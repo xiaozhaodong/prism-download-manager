@@ -36,14 +36,15 @@ fn lookup(lang: &str, key: &str) -> Option<&'static str> {
         "it" => 5,
         "id" => 6,
         "ar" => 7,
-        "zh-CN" => 8,
+        "tr" => 8,
+        "zh-CN" => 9,
         _ => return None,
     };
     Some(row[column])
 }
 
-/// English, Czech, German, Spanish, French, Italian, Indonesian, Arabic, Simplified Chinese.
-const TEXTS: &[[&str; 9]] = &[
+/// English, Czech, German, Spanish, French, Italian, Indonesian, Arabic, Turkish, Simplified Chinese.
+const TEXTS: &[[&str; 10]] = &[
     [
         "Open Prism",
         "Otevřít Prism",
@@ -53,6 +54,7 @@ const TEXTS: &[[&str; 9]] = &[
         "Apri Prism",
         "Buka Prism",
         "فتح Prism",
+        "Prism'i aç",
         "打开 Prism",
     ],
     [
@@ -64,6 +66,7 @@ const TEXTS: &[[&str; 9]] = &[
         "Aggiungi URL…",
         "Tambah URL…",
         "إضافة رابط…",
+        "URL ekle…",
         "添加网址…",
     ],
     [
@@ -75,6 +78,7 @@ const TEXTS: &[[&str; 9]] = &[
         "Metti tutto in pausa",
         "Jeda semua",
         "إيقاف الكل مؤقتًا",
+        "Tümünü duraklat",
         "全部暂停",
     ],
     [
@@ -86,6 +90,7 @@ const TEXTS: &[[&str; 9]] = &[
         "Riprendi tutto",
         "Lanjutkan semua",
         "استئناف الكل",
+        "Tümünü sürdür",
         "全部继续",
     ],
     [
@@ -97,6 +102,7 @@ const TEXTS: &[[&str; 9]] = &[
         "Limitatore di velocità",
         "Pembatas kecepatan",
         "محدد السرعة",
+        "Hız sınırlayıcı",
         "限速器",
     ],
     [
@@ -108,6 +114,7 @@ const TEXTS: &[[&str; 9]] = &[
         "Mini finestra",
         "Jendela mini",
         "نافذة مصغرة",
+        "Mini pencere",
         "迷你窗口",
     ],
     [
@@ -119,6 +126,7 @@ const TEXTS: &[[&str; 9]] = &[
         "Area di rilascio",
         "Zona lepas",
         "منطقة الإفلات",
+        "Bırakma alanı",
         "拖放区",
     ],
     [
@@ -130,6 +138,7 @@ const TEXTS: &[[&str; 9]] = &[
         "Esci da Prism",
         "Keluar dari Prism",
         "إنهاء Prism",
+        "Prism'den çık",
         "退出 Prism",
     ],
     [
@@ -141,6 +150,7 @@ const TEXTS: &[[&str; 9]] = &[
         "Prism — inattivo",
         "Prism — diam",
         "Prism — خامل",
+        "Prism — boşta",
         "Prism — 空闲",
     ],
     [
@@ -152,6 +162,7 @@ const TEXTS: &[[&str; 9]] = &[
         "Prism — {count} in download · {speed}",
         "Prism — {count} mengunduh · {speed}",
         "Prism — {count} قيد التنزيل · {speed}",
+        "Prism — {count} indiriliyor · {speed}",
         "Prism — {count} 个正在下载 · {speed}",
     ],
     [
@@ -163,6 +174,7 @@ const TEXTS: &[[&str; 9]] = &[
         "Download aggiunto",
         "Unduhan ditambahkan",
         "تمت إضافة التنزيل",
+        "İndirme eklendi",
         "已添加下载",
     ],
     [
@@ -174,6 +186,7 @@ const TEXTS: &[[&str; 9]] = &[
         "Download completato",
         "Unduhan selesai",
         "اكتمل التنزيل",
+        "İndirme tamamlandı",
         "下载完成",
     ],
     [
@@ -185,6 +198,7 @@ const TEXTS: &[[&str; 9]] = &[
         "Download non riuscito",
         "Unduhan gagal",
         "فشل التنزيل",
+        "İndirme başarısız oldu",
         "下载失败",
     ],
     [
@@ -196,6 +210,7 @@ const TEXTS: &[[&str; 9]] = &[
         "Coda completata",
         "Antrean selesai",
         "انتهت قائمة الانتظار",
+        "Kuyruk tamamlandı",
         "队列已完成",
     ],
     [
@@ -207,6 +222,7 @@ const TEXTS: &[[&str; 9]] = &[
         "{name} non ha altri download.",
         "{name} tidak punya unduhan lagi.",
         "لم يعد في {name} أي تنزيلات.",
+        "{name} için başka indirme kalmadı.",
         "{name} 中已没有待下载的任务。",
     ],
     [
@@ -218,6 +234,7 @@ const TEXTS: &[[&str; 9]] = &[
         "Aggiunto all’elenco",
         "Ditambahkan ke daftar",
         "أضيف إلى القائمة",
+        "Listeye eklendi",
         "已添加到列表",
     ],
     [
@@ -229,6 +246,7 @@ const TEXTS: &[[&str; 9]] = &[
         "Download nel browser",
         "Mengunduh di browser",
         "يجري التنزيل في المتصفح",
+        "Tarayıcıda indiriliyor",
         "正在浏览器中下载",
     ],
     [
@@ -240,6 +258,7 @@ const TEXTS: &[[&str; 9]] = &[
         "{host} permette di scaricare questo file solo a un browser web, quindi lo sta scaricando il browser.",
         "{host} hanya mengizinkan browser web mengunduh file ini, jadi browser yang mengunduhnya.",
         "يسمح {host} لمتصفح الويب فقط بتنزيل هذا الملف، لذا يتولى المتصفح تنزيله.",
+        "{host} bu dosyanın yalnızca bir web tarayıcısıyla indirilmesine izin veriyor, bu yüzden dosyayı tarayıcı indiriyor.",
         "{host} 只允许网页浏览器下载此文件，因此改由浏览器下载。",
     ],
 ];
@@ -276,6 +295,8 @@ mod tests {
             "Ve frontě Noc už nic nezbývá."
         );
         assert_eq!(tr("Something new", &[]), "Something new");
+        set_language("tr");
+        assert_eq!(tr("Open Prism", &[]), "Prism'i aç");
         set_language("en");
         assert_eq!(tr("Pause all", &[]), "Pause all");
         set_language("zh-CN");

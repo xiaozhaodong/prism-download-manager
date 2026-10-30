@@ -12,7 +12,8 @@ export type Route =
   | { name: "complete"; id: string }
   | { name: "details"; id: string }
   | { name: "progress"; id: string }
-  | { name: "torrent"; source: string };
+  | { name: "torrent"; source: string }
+  | { name: "model"; source: string };
 
 const WITH_ID = ["capture", "batch", "video", "complete", "details", "progress"] as const;
 
@@ -27,6 +28,8 @@ export function parseRoute(hash: string): Route {
       return { name: kind };
     case "torrent":
       return arg ? { name: "torrent", source: hexDecode(arg) } : { name: "main" };
+    case "model":
+      return { name: "model", source: arg ? hexDecode(arg) : "" };
     default:
       if ((WITH_ID as readonly string[]).includes(kind) && arg) {
         return { name: kind as (typeof WITH_ID)[number], id: arg };

@@ -80,6 +80,7 @@ export const ICONS: Readonly<Record<IconName, readonly IconNode[]>> = {
   "mini-mode": [["rect", {"x": 3, "y": 5, "width": 18, "height": 14, "rx": 2.5}], ["rect", {"x": 11.5, "y": 11, "width": 6.5, "height": 5, "rx": 1}]],
   "minimize": [["path", {"d": "M6.5 12h11"}]],
   "minus": [["path", {"d": "M5 12h14"}]],
+  "model": [["circle", {"cx": 5.5, "cy": 7, "r": 2}], ["circle", {"cx": 5.5, "cy": 17, "r": 2}], ["circle", {"cx": 12, "cy": 12, "r": 2.25}], ["circle", {"cx": 18.5, "cy": 7, "r": 2}], ["circle", {"cx": 18.5, "cy": 17, "r": 2}], ["path", {"d": "M7.2 8.3l2.95 2.35M7.2 15.7l2.95-2.35M13.85 10.65l2.95-2.35M13.85 13.35l2.95 2.35"}]],
   "monitor": [["rect", {"x": 3, "y": 4, "width": 18, "height": 12.5, "rx": 2.5}], ["path", {"d": "M8.5 20h7M12 16.5V20"}]],
   "moon": [["path", {"d": "M19.73 13.03A8.25 8.25 0 1 1 10.97 4.27A6.75 6.75 0 0 0 19.73 13.03Z"}]],
   "more": [["circle", {"cx": 5.5, "cy": 12, "r": 1.4, "fill": "currentColor", "stroke": "none"}], ["circle", {"cx": 12, "cy": 12, "r": 1.4, "fill": "currentColor", "stroke": "none"}], ["circle", {"cx": 18.5, "cy": 12, "r": 1.4, "fill": "currentColor", "stroke": "none"}]],

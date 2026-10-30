@@ -477,6 +477,7 @@ pub(crate) async fn probe(
         .is_some_and(crate::categories::is_binary_file_name);
     req.proxy = Some(proxy_config(settings));
     req.http = http_preference(settings);
+    crate::huggingface::authorize(&mut req, settings);
     match tokio::time::timeout(Duration::from_secs(20), core.0.engine.probe(&req)).await {
         Ok(Ok(p)) => Ok(ProbeResult {
             final_url: p.final_url.to_string(),
@@ -546,6 +547,8 @@ fn build_request(item: &DownloadItem, settings: &Settings) -> Result<DownloadReq
     if let Some(c) = item.checksum.as_deref().and_then(parse_checksum) {
         req.checksum = Some(c);
     }
+    // Gated and private Hugging Face models: the token is added now, not stored with the item.
+    crate::huggingface::authorize(&mut req, settings);
     if req.user_agent.is_none() && !settings.connection.user_agent.is_empty() {
         req.user_agent = Some(settings.connection.user_agent.clone());
     }

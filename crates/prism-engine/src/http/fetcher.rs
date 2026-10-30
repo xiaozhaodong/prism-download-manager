@@ -146,9 +146,13 @@ impl HttpFetcher {
             HttpMethod::Get => reqwest::Method::GET,
             HttpMethod::Post => reqwest::Method::POST,
         };
-        let mut rb = client
-            .request(method, url.clone())
-            .headers(self.ctx.headers.clone());
+        let mut headers = self.ctx.headers.clone();
+        if headers.contains_key(header::AUTHORIZATION) && !self.ctx.sources.is_own_site(url) {
+            // A redirect target on another server (a CDN's signed link) doesn't get the site's
+            // credentials, the same as the redirect itself (reqwest drops them across sites).
+            headers.remove(header::AUTHORIZATION);
+        }
+        let mut rb = client.request(method, url.clone()).headers(headers);
         if let Some((from, to)) = range {
             let v = match to {
                 Some(to) if to > from => format!("bytes={from}-{}", to - 1),

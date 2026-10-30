@@ -82,9 +82,10 @@ fn main() {
             if let Some(main) = app.get_webview_window("main") {
                 apply_window_material(&main, &settings);
                 let show = !background && !settings.general.start_minimized;
-                #[cfg(target_os = "macos")]
-                if show {
-                    // WKWebView doesn't paint into a hidden window: show the (transparent) window now.
+                if show && windows::SHOW_ON_CREATE {
+                    // macOS: WKWebView doesn't paint into a hidden window. Linux (#30): a hidden
+                    // WebKitGTK window sometimes stays blank when shown. The transparent window is
+                    // shown now and paints itself in.
                     let _ = main.show();
                 }
                 if show {
@@ -126,6 +127,14 @@ fn main() {
             Ok(())
         })
         .on_window_event(|window, event| {
+            // Windows switched between light and dark: with the theme following it, the Mica
+            // behind the window switches too (it was picked only when the window opened).
+            if window.label() == "main"
+                && let WindowEvent::ThemeChanged(_) = event
+                && let Some(main) = window.app_handle().get_webview_window("main")
+            {
+                apply_window_material(&main, &window.state::<Core>().settings());
+            }
             if window.label() == "main"
                 && let WindowEvent::CloseRequested { api, .. } = event
                 && !QUITTING.load(Ordering::SeqCst)
@@ -165,6 +174,11 @@ fn main() {
             commands::inspect_torrent,
             commands::read_torrent_file,
             commands::add_torrent,
+            commands::hf_context,
+            commands::hf_repo,
+            commands::hf_search,
+            commands::hf_present,
+            commands::hf_add,
             commands::start_items,
             commands::pause_items,
             commands::pause_all,
@@ -214,6 +228,7 @@ fn main() {
             commands::toggle_dropzone,
             commands::show_main,
             commands::main_window_starts_visible,
+            commands::native_material,
             commands::app_run_id,
             commands::set_ui_language,
             commands::remove_deleted_files,
@@ -330,6 +345,36 @@ fn apply_dock_icon(app: &AppHandle, settings: &Settings) {
             let _ = main.set_focus();
         }
     });
+}
+
+/// Whether the OS puts a material behind the window: Mica on Windows 11, vibrancy on macOS. On
+/// Linux and Windows 10 there is none, and the window keeps its own background.
+pub(crate) fn native_material_supported() -> bool {
+    #[cfg(target_os = "windows")]
+    {
+        // Mica needs Windows 11 (build 22000). Unknown: assume it's there, as before.
+        windows_build().is_none_or(|b| b >= 22000)
+    }
+    #[cfg(target_os = "macos")]
+    {
+        true
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        false
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn windows_build() -> Option<u32> {
+    let key = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE)
+        .open_subkey(r"SOFTWARE\Microsoft\Windows NT\CurrentVersion")
+        .ok()?;
+    key.get_value::<String, _>("CurrentBuildNumber")
+        .ok()?
+        .trim()
+        .parse()
+        .ok()
 }
 
 /// Dark or light Mica behind the window. With the theme following the system, it follows what
@@ -462,6 +507,11 @@ fn spawn_event_forwarder(app: AppHandle, core: Core) {
     });
 }
 
+/// A file of a Hugging Face model downloading in its queue (no window per file).
+fn in_model_queue(item: &prism_core::model::DownloadItem) -> bool {
+    item.queue_id.as_deref() == Some(prism_core::huggingface::QUEUE_ID)
+}
+
 /// Opens the item's progress window the first time it's seen active, when the setting is on.
 /// `opened_progress.insert` both checks and records "already handled" in one step.
 fn maybe_open_progress_window(
@@ -472,6 +522,7 @@ fn maybe_open_progress_window(
 ) {
     if item.status.is_active() {
         if settings.general.show_progress_window
+            && !in_model_queue(item)
             && opened_progress.insert(item.id.clone())
             && let Err(e) = windows::open_progress(app, &item.id)
         {
@@ -530,7 +581,10 @@ fn side_effects(
             }
         }
         CoreEvent::Completed(item) => {
-            if settings.general.show_completion_dialog {
+            if in_model_queue(item) {
+                // A model's files finish one after another: one notification when the queue is
+                // done instead of a dialog for every config file and weights part.
+            } else if settings.general.show_completion_dialog {
                 let _ = windows::open(app, "complete", Some(&item.id));
             } else {
                 notify("Download complete", &item.file_name);
@@ -561,6 +615,12 @@ fn side_effects(
         CoreEvent::OpenTorrent { source } => {
             if let Err(e) = windows::open(app, "torrent", Some(&encode_path(source))) {
                 tracing::error!("could not open the Add torrent window: {e}");
+            }
+        }
+        CoreEvent::OpenModel { source } => {
+            let id = (!source.is_empty()).then(|| encode_path(source));
+            if let Err(e) = windows::open(app, "model", id.as_deref()) {
+                tracing::error!("could not open the model window: {e}");
             }
         }
         CoreEvent::ShowMain => windows::show_main(app),

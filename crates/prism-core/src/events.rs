@@ -134,6 +134,10 @@ pub enum CoreEvent {
     OpenTorrent {
         source: String,
     },
+    /// Open the Hugging Face model window for a model's name or link (`""`: search).
+    OpenModel {
+        source: String,
+    },
     ClipboardUrls(Vec<String>),
     Grabber {
         project_id: String,

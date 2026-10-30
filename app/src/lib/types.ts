@@ -261,6 +261,15 @@ export interface Settings {
     /** Start playlist videos' file names with their position ("01 - Title"). */
     numberPlaylistVideos: boolean;
   };
+  /** Models from Hugging Face. */
+  huggingFace: {
+    /** "" = HF_ENDPOINT if set, else huggingface.co; or a mirror's address. */
+    endpoint: string;
+    /** For gated and private models ("" = the one the Hugging Face tools saved, if any). */
+    token: string;
+    /** "" = Models in the download folder. */
+    folder: string;
+  };
   shortcuts: Record<string, string>;
   onboardingDone: boolean;
   /** The app version whose "What's new" was shown ("" before 1.1.0). */

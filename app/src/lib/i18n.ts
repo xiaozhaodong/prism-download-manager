@@ -17,6 +17,7 @@ import es from "../locales/es.json";
 import fr from "../locales/fr.json";
 import id from "../locales/id.json";
 import it from "../locales/it.json";
+import turkish from "../locales/tr.json";
 import zhCN from "../locales/zh-CN.json";
 
 export type PluralEntry = Partial<Record<Intl.LDMLPluralRule, string>>;
@@ -31,13 +32,14 @@ export const LANGUAGES = [
   { code: "fr", name: "Français" },
   { code: "id", name: "Bahasa Indonesia" },
   { code: "it", name: "Italiano" },
+  { code: "tr", name: "Türkçe" },
   { code: "ar", name: "العربية" },
   { code: "zh-CN", name: "简体中文" },
 ] as const;
 
 export type Language = (typeof LANGUAGES)[number]["code"];
 
-export const CATALOGS: Record<Language, Catalog> = { en, cs, de, es, fr, id, it, ar, "zh-CN": zhCN };
+export const CATALOGS: Record<Language, Catalog> = { en, cs, de, es, fr, id, it, tr: turkish, ar, "zh-CN": zhCN };
 
 /** Chinese written in simplified characters (zh, zh-CN, zh-SG, zh-Hans…); zh-TW / zh-HK / zh-Hant don't match. */
 const SIMPLIFIED_CHINESE = /^zh(?:-(?:hans|cn|sg)(?:-|$)|$)/;

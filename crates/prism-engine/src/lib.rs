@@ -62,5 +62,5 @@ pub use request::{
     VariantProbeRequest, VariantSelection,
 };
 pub use resume::{MediaResumeState, RESUME_STATE_VERSION, ResumeKind, ResumeState, SegmentState};
-pub use small::{SmallFile, fetch_small_file};
+pub use small::{SmallFile, SmallResponse, fetch_small, fetch_small_file};
 pub use url::Url;

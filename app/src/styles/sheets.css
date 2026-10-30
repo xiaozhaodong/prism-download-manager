@@ -259,3 +259,12 @@
 .link-btn { display: inline; padding: 0; color: var(--accent); font: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .ubanner__bar { display: block; height: 4px; margin-top: 6px; border-radius: 2px; background: var(--track-bg); overflow: hidden; }
 .ubanner__bar > span { display: block; height: 100%; border-radius: 2px; background: var(--gradient-accent); transition: width 0.3s; }
+
+/* A star on GitHub: asked once at the end of the first-run guide, mentioned in What's new. */
+.onboard__star { display: flex; align-items: center; gap: 12px; width: min(100%, 470px); margin-top: 10px; padding: 12px 14px; text-align: start; }
+.onboard__staricon { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 10px; color: var(--accent); background: rgb(var(--accent-rgb) / 0.12); }
+.onboard__startxt { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.onboard__startxt b { font-size: 13px; }
+.whatsnew__star { display: flex; align-items: flex-start; gap: 8px; margin: 6px 2px 0; padding-top: 14px; border-top: 1px solid var(--divider); }
+.whatsnew__star .icon { flex: none; margin-top: 1px; }
+.about__star { font-size: 12.5px; }

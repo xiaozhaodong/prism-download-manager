@@ -5,10 +5,11 @@ import { ListField, NumberField, RateField, Row, Segmented, Select, Slider, Swit
 import { BrandTile } from "../../components/LogoMark";
 import { Icon, type IconName } from "../../design/icons";
 import { type DeepPartial, patchSettings } from "../../lib/actions";
-import { api, type IntegrationStatus, type ToolStatus } from "../../lib/api";
+import { api, type HfContext, type IntegrationStatus, type ToolStatus } from "../../lib/api";
 import { formatDate } from "../../lib/format";
 import { LANGUAGES, t, tk } from "../../lib/i18n";
 import { needsRepair } from "../../lib/integration";
+import { openUrl, REPO_URL } from "../../lib/links";
 import { categoryIcon, displayName } from "../../lib/present";
 import { COMPLETE_SOUNDS } from "../../lib/sounds";
 import { playSound, useApp } from "../../lib/store";
@@ -28,6 +29,7 @@ export const SECTIONS: { id: string; label: string; icon: IconName; group?: bool
   { id: "categories", label: tk("Categories"), icon: "all" },
   { id: "browser", label: tk("Browser integration"), icon: "browser" },
   { id: "video", label: tk("Video & streams"), icon: "video" },
+  { id: "models", label: tk("AI models"), icon: "model" },
   { id: "scheduler", label: tk("Scheduler"), icon: "scheduler" },
   { id: "sounds", label: tk("Notifications & sounds"), icon: "bell", group: true },
   { id: "security", label: tk("Security & antivirus"), icon: "shield" },
@@ -37,6 +39,8 @@ export const SECTIONS: { id: string; label: string; icon: IconName; group?: bool
 ];
 
 const save = (patch: DeepPartial<Settings>) => void patchSettings(patch);
+const DEFAULT_HUB = "https://huggingface.co";
+const MIRROR = "https://hf-mirror.com";
 
 /** The Dock exists only on macOS. */
 const IS_MAC = /Mac/i.test(navigator.userAgent);
@@ -312,6 +316,8 @@ function SectionBody({ id, s }: { id: string; s: Settings }) {
       return <BrowserIntegration />;
     case "video":
       return <Video s={s} />;
+    case "models":
+      return <Models s={s} />;
     case "scheduler":
       return <SchedulerShortcut />;
     case "sounds":
@@ -629,6 +635,77 @@ function BrowserIntegration() {
   );
 }
 
+/** Settings › AI models: the Hugging Face server, access token and folder (#29). */
+function Models({ s }: { s: Settings }) {
+  const hf = s.huggingFace;
+  const [ctx, setCtx] = useState<HfContext | null>(null);
+  const [custom, setCustom] = useState(() => !!hf.endpoint && hf.endpoint !== MIRROR);
+  useEffect(() => {
+    void api.hfContext().then(setCtx, () => undefined);
+  }, [hf.endpoint, hf.token, hf.folder, s.downloads.defaultDir]);
+  const server = custom ? "custom" : hf.endpoint === MIRROR ? "mirror" : "";
+  const fromEnv = !hf.endpoint && ctx && ctx.endpoint !== DEFAULT_HUB;
+  return (
+    <>
+      <Group title={t("Hugging Face")}>
+        <Row title={t("Download a model")} hint={t("Find a model by its name, a link or a search. Prism picks the files worth downloading and they download one after another, each over many connections.")}>
+          <button type="button" className="btn" onClick={() => void attempt(api.openWindow("model"))}>
+            <Icon name="model" size={15} /> {t("Open…")}
+          </button>
+        </Row>
+        <Row title={t("Server")} hint={fromEnv ? t("From HF_ENDPOINT: {address}", { address: ctx.endpoint }) : t("hf-mirror.com is a copy of Hugging Face for places where it is blocked.")}>
+          <Select
+            label={t("Server")}
+            value={server}
+            onChange={(v) => {
+              setCustom(v === "custom");
+              if (v !== "custom") save({ huggingFace: { endpoint: v === "mirror" ? MIRROR : "" } });
+            }}
+            options={[
+              { value: "", label: "huggingface.co" },
+              { value: "mirror", label: "hf-mirror.com" },
+              { value: "custom", label: t("Other…") },
+            ]}
+            width={200}
+          />
+        </Row>
+        {custom && (
+          <Row title={t("Server address")}>
+            <TextField value={hf.endpoint} onCommit={(v) => save({ huggingFace: { endpoint: v.trim() } })} label={t("Server address")} placeholder="https://" mono />
+          </Row>
+        )}
+        <Row
+          title={t("Access token")}
+          hint={
+            <>
+              {ctx?.token === "login"
+                ? t("Using the token the Hugging Face tools saved (hf auth login).")
+                : ctx?.token === "environment"
+                  ? t("Using the token from HF_TOKEN.")
+                  : t("For gated and private models. Sent only to the server above, never stored with the downloads.")}{" "}
+              <button type="button" className="linkbtn" onClick={() => void openUrl("https://huggingface.co/settings/tokens")}>
+                {t("Create a token")}
+              </button>
+            </>
+          }
+        >
+          <TextField value={hf.token} onCommit={(v) => save({ huggingFace: { token: v.trim() } })} type="password" label={t("Access token")} placeholder="hf_…" mono />
+        </Row>
+        <Row title={t("Models folder")} hint={ctx?.folder}>
+          {hf.folder && (
+            <button type="button" className="btn btn--ghost" onClick={() => save({ huggingFace: { folder: "" } })}>
+              {t("Reset")}
+            </button>
+          )}
+          <button type="button" className="btn" onClick={() => void pickFolder(ctx?.folder ?? hf.folder).then((p) => p && save({ huggingFace: { folder: p } }))}>
+            <Icon name="folder-open" size={15} /> {t("Change…")}
+          </button>
+        </Row>
+      </Group>
+    </>
+  );
+}
+
 function Video({ s }: { s: Settings }) {
   const [tools, setTools] = useState<ToolStatus | null>(null);
   const [busy, setBusy] = useState<"" | "ensure" | "update">("");
@@ -892,6 +969,9 @@ function About() {
         </button>
       </div>
       <p className="lead">{t("One beam, many rays. A fast multi-connection download manager with browser integration, video downloading, queues, a scheduler and a site grabber.")}</p>
+      <button type="button" className="linkbtn about__star" onClick={() => void openUrl(REPO_URL)}>
+        {t("Prism is open source. Star it on GitHub")}
+      </button>
       <p className="t-small text-tertiary">{t("Inter and JetBrains Mono are used under the SIL Open Font License. yt-dlp, ffmpeg and librqbit are separate projects under their own licenses.")}</p>
     </div>
   );

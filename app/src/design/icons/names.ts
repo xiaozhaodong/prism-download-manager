@@ -71,6 +71,7 @@ export const ICON_NAMES = [
   "mini-mode",
   "minimize",
   "minus",
+  "model",
   "monitor",
   "moon",
   "more",
@@ -141,7 +142,7 @@ export const ICON_NAMES = [
 export type IconName = (typeof ICON_NAMES)[number];
 
 export const ICON_GROUPS = {
-  toolbar: ["add-url", "resume", "pause", "stop", "stop-all", "delete", "delete-completed", "options", "settings", "scheduler", "start-queue", "stop-queue", "grabber", "speed-limiter", "batch", "import", "export", "search", "filter", "more", "more-vertical", "columns", "download", "upload"],
+  toolbar: ["add-url", "resume", "pause", "stop", "stop-all", "delete", "delete-completed", "options", "settings", "scheduler", "start-queue", "stop-queue", "grabber", "speed-limiter", "batch", "model", "import", "export", "search", "filter", "more", "more-vertical", "columns", "download", "upload"],
   categories: ["all", "video", "music", "documents", "programs", "compressed", "images", "other", "folder", "custom-folder", "unfinished", "finished", "queue", "grabber-project", "trash"],
   files: ["file", "file-video", "file-audio", "file-image", "file-archive", "file-document", "file-pdf", "file-exe", "file-code", "file-font", "disk-image", "torrent"],
   status: ["status-downloading", "status-paused", "status-queued", "status-completed", "status-error", "status-scheduled", "status-verifying", "status-merging", "status-waiting"],
