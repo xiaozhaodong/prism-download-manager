@@ -9,7 +9,7 @@ import { toast } from "../lib/ui";
 import { scheduleUpdateChecks, windowEnv } from "../lib/update-schedule";
 
 const SITE = "https://prismdl.site/#download";
-const RELEASES = "https://github.com/FortoGraphy/prism-download-manager/releases";
+const RELEASES = "https://github.com/xiaozhaodong/prism-download-manager/releases";
 
 interface UpdateState {
   info: UpdateInfo | null;

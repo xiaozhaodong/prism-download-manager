@@ -1,0 +1,97 @@
+name: Sync upstream
+
+# Fork only: merges each new upstream release into main and tags the merge with the same
+# version, which starts "Release builds" (the fork's in-app updater then offers it). A merge
+# conflict fails the run (GitHub emails about it): merge by hand, push main and the tag, and the
+# release builds as usual. Texts without a Simplified Chinese translation are listed in the run
+# summary; they show in English until zh-CN.json has them.
+#
+# Needs the secret SYNC_TOKEN: a fine-grained token for this repository with Contents and
+# Workflows read/write. Pushes with the default token start no other workflow and can't carry
+# upstream changes to .github/workflows.
+
+on:
+  schedule:
+    - cron: "23 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+env:
+  UPSTREAM: FortoGraphy/prism-download-manager
+
+jobs:
+  sync:
+    name: Merge the latest upstream release
+    if: github.repository != 'FortoGraphy/prism-download-manager'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_TOKEN }}
+      - name: Find the latest upstream release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG=$(gh release view -R "$UPSTREAM" --json tagName --jq .tagName)
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Unexpected upstream release tag: $TAG"
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" > /dev/null; then
+            echo "$TAG is already released here."
+            TAG=""
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+      - name: Merge it
+        if: steps.release.outputs.tag != ''
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags "https://github.com/$UPSTREAM.git" "refs/tags/$TAG"
+          if ! git merge --no-edit -m "Merge upstream $TAG" "FETCH_HEAD^{commit}"; then
+            echo "::error::Merging upstream $TAG conflicts in: $(git diff --name-only --diff-filter=U | xargs)"
+            git merge --abort
+            exit 1
+          fi
+          VERSION=$(jq -r .version app/src-tauri/tauri.conf.json)
+          if [ "v$VERSION" != "$TAG" ]; then
+            echo "::error::tauri.conf.json says $VERSION, the release is $TAG"
+            exit 1
+          fi
+      - name: List texts without a Chinese translation
+        if: steps.release.outputs.tag != ''
+        shell: python3 {0}
+        run: |
+          import json, os, pathlib
+          locales = pathlib.Path("app/src/locales")
+          zh = json.loads((locales / "zh-CN.json").read_text(encoding="utf-8"))
+          others = [json.loads(p.read_text(encoding="utf-8")) for p in locales.glob("*.json") if p.stem not in ("en", "zh-CN")]
+          missing = sorted({key for catalog in others for key in catalog} - zh.keys())
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              if not missing:
+                  summary.write("Every text has a Simplified Chinese translation.\n")
+              else:
+                  print(f"::warning::{len(missing)} texts have no Simplified Chinese translation (they show in English)")
+                  summary.write(f"### {len(missing)} texts without a Simplified Chinese translation\n\n")
+                  summary.writelines(f"- `{key}`\n" for key in missing)
+      - name: Push main and the release tag
+        if: steps.release.outputs.tag != ''
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git tag "$TAG"
+          git push --atomic origin HEAD:main "refs/tags/$TAG"
