@@ -77,6 +77,18 @@ pub struct VideoCapture {
     pub streams: Vec<SniffedStream>,
     /// Pre-selected choice from the in-page button menu.
     pub preselected: Option<String>,
+    /// The browser's session for the page (cookies, user agent) when the request came from the
+    /// in-page button: the window's probe and the download use it (age-restricted and members'
+    /// videos). Stays in the core.
+    #[serde(skip)]
+    pub browser: Option<BrowserSession>,
+}
+
+/// Cookies and user agent of the browser tab a video request came from.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct BrowserSession {
+    pub cookies: Option<String>,
+    pub user_agent: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
@@ -88,6 +100,18 @@ pub struct SniffedStream {
     pub mime: Option<String>,
     pub size: Option<u64>,
     pub label: Option<String>,
+}
+
+/// A file of a ZIP downloaded on its own from the Download File window ("What's inside").
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct ZipProgress {
+    pub capture_id: String,
+    /// The file's number in the archive.
+    pub index: u32,
+    /// Unpacked bytes written so far.
+    pub done: u64,
+    pub total: u64,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -103,6 +127,7 @@ pub enum CoreEvent {
     SettingsChanged(Box<Settings>),
     CaptureRequested(CaptureInfo),
     CaptureUpdated(CaptureInfo),
+    ZipProgress(ZipProgress),
     BatchRequested(BatchInfo),
     VideoRequested(VideoCapture),
     /// A download finished (UI shows the completion dialog / notification).
@@ -148,6 +173,8 @@ pub enum CoreEvent {
         downloaded: u64,
         total: Option<u64>,
     },
+    /// A Tools job (convert, make smaller, ZIP) was added or changed.
+    MediaJob(crate::media::MediaJob),
     /// Ask the shell to bring the main window forward (second instance, tray, ...).
     ShowMain,
     /// The app should exit (post action "exit").

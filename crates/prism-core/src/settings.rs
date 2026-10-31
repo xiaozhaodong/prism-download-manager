@@ -49,8 +49,6 @@ pub struct General {
     pub launch_at_startup: bool,
     pub start_minimized: bool,
     pub close_to_tray: bool,
-    /// macOS: show Prism's icon in the Dock (off = it lives in the menu bar only).
-    pub show_dock_icon: bool,
     /// Show the "Download File" dialog for downloads captured from the browser.
     pub show_capture_dialog: bool,
     /// Show the per-download progress window when a download starts.
@@ -67,6 +65,9 @@ pub struct General {
     /// UI language code ("en", "cs", "de", "es", "fr", "it", "id", "tr", "ar", "zh-CN"); empty =
     /// the system's language.
     pub language: String,
+    /// macOS (#34): no Dock icon while Prism waits in the menu bar (it's back while the main
+    /// window is open).
+    pub hide_dock_icon: bool,
 }
 
 impl Default for General {
@@ -75,7 +76,6 @@ impl Default for General {
             launch_at_startup: true,
             start_minimized: false,
             close_to_tray: true,
-            show_dock_icon: true,
             show_capture_dialog: true,
             show_progress_window: false,
             show_completion_dialog: true,
@@ -85,6 +85,7 @@ impl Default for General {
             check_updates: true,
             remove_deleted_files: false,
             language: String::new(),
+            hide_dock_icon: false,
         }
     }
 }

@@ -10,7 +10,7 @@ use prism_video::plan::{
 use prism_video::probe::{ToolPaths, context_args, global_args, netscape_cookies, probe_args};
 use prism_video::template::{render_template, sanitize_component};
 use prism_video::{
-    AudioFormat, Choice, Container, OutputOptions, Plan, RequestContext, SponsorBlockMode,
+    AudioFormat, Choice, Container, OutputOptions, Plan, RequestContext, Section, SponsorBlockMode,
     StreamRole, VideoOptions,
 };
 
@@ -409,4 +409,125 @@ fn templates_and_sanitizing() {
     assert_eq!(sanitize_component("a\tb\nc. "), "a b c");
     assert_eq!(sanitize_component("   "), "_");
     assert_eq!(sanitize_component(&"x".repeat(300)).chars().count(), 180);
+}
+
+fn part(start: f64, end: f64) -> OutputOptions {
+    OutputOptions {
+        section: Some(Section::new(start, end)),
+        ..opts()
+    }
+}
+
+fn ytdlp_args(v: &prism_video::VideoInfo, c: &Choice, o: &OutputOptions) -> String {
+    plan_ytdlp(v, c, o, &RequestContext::default(), 8, "x".into())
+        .args
+        .join(" ")
+}
+
+#[test]
+fn a_part_is_downloaded_by_the_engine_and_cut_by_ffmpeg() {
+    let v = video("youtube_bbb.json");
+    let c = choice(&v, "v1080p60");
+    let o = OutputOptions {
+        embed_subtitles: true,
+        write_subtitles: true,
+        embed_chapters: true,
+        ..part(83.0, 165.0)
+    };
+    // The core downloads only the pieces around the part (over many connections) and ffmpeg
+    // cuts it out of them.
+    assert!(accelerated_blocker(&v, c, &o).is_none());
+    let Plan::Accelerated(p) = plan(&v, c, &o, &RequestContext::default(), None, true, 8) else {
+        panic!("expected the accelerated plan")
+    };
+    let cut = p.post.cut.as_ref().expect("a cut");
+    assert_eq!((cut.start, cut.length), (83.0, 82.0));
+    assert_eq!(p.post.duration, Some(82.0));
+    let roles: Vec<StreamRole> = p.streams.iter().map(|s| s.role).collect();
+    assert!(roles.contains(&StreamRole::Video) && roles.contains(&StreamRole::Audio));
+    // Subtitles and chapters are timed to the whole video: a part gets none.
+    assert!(!roles.contains(&StreamRole::Subtitle), "{roles:?}");
+    assert!(!p.post.embed_subtitles && !p.post.write_subtitles);
+    assert!(!p.post.embed_chapters && p.post.chapters.is_empty());
+    // The whole video has no cut.
+    let Plan::Accelerated(w) = plan(&v, c, &opts(), &RequestContext::default(), None, true, 8)
+    else {
+        panic!("expected the accelerated plan")
+    };
+    assert!(w.post.cut.is_none());
+}
+
+#[test]
+fn a_part_falls_back_to_ytdlp_cutting_on_exact_frames() {
+    let v = video("youtube_bbb.json");
+    let c = choice(&v, "v1080p60");
+    let o = part(83.0, 165.0);
+    // A stream without an index at its start: yt-dlp has ffmpeg fetch and cut the part.
+    let job = plan_ytdlp(&v, c, &o, &RequestContext::default(), 8, "x".into());
+    assert_eq!(job.section, Some(Section::new(83.0, 165.0)));
+    let a = job.args.join(" ");
+    assert!(
+        a.contains(
+            "-N 8 --download-sections *83-165 --force-keyframes-at-cuts \
+             --downloader-args ffmpeg:-progress pipe:1 -nostats"
+        ),
+        "{a}"
+    );
+    assert!(a.contains("--embed-thumbnail") && a.contains("--embed-metadata"));
+    // Chapters, SponsorBlock segments and subtitles are timed to the whole video.
+    assert!(!a.contains("--embed-chapters"), "{a}");
+    let mut o2 = OutputOptions {
+        embed_subtitles: true,
+        write_subtitles: true,
+        auto_subtitles: true,
+        ..part(83.0, 165.0)
+    };
+    o2.sponsorblock.mode = SponsorBlockMode::Remove;
+    let a = ytdlp_args(&v, c, &o2);
+    assert!(!a.contains("--sponsorblock"), "{a}");
+    assert!(!a.contains("-subs") && !a.contains("--sub-langs"), "{a}");
+}
+
+#[test]
+fn an_audio_part_is_copied_not_encoded_twice() {
+    let v = video("youtube_bbb.json");
+    let mp3 = choice(&v, "a-mp3");
+    let job = plan_ytdlp(
+        &v,
+        mp3,
+        &part(0.0, 10.5),
+        &RequestContext::default(),
+        8,
+        "x".into(),
+    );
+    let a = job.args.join(" ");
+    assert!(a.contains("-x --audio-format mp3"), "{a}");
+    assert!(a.contains("--download-sections *0-10.5"), "{a}");
+    assert!(!a.contains("--force-keyframes-at-cuts"), "{a}");
+    assert_eq!(job.section.map(|s| s.length()), Some(10.5));
+}
+
+#[test]
+fn a_part_is_cut_to_the_video() {
+    let v = video("youtube_bbb.json"); // 635 s
+    let c = choice(&v, "v720p60");
+    // Past the end: up to the end.
+    assert!(ytdlp_args(&v, c, &part(600.0, 900.0)).contains("--download-sections *600-635"));
+    // The whole video (to the second) is a normal download.
+    let whole = part(0.0, 634.6);
+    assert!(prism_video::plan::part(&v, &whole).is_none());
+    assert!(matches!(
+        plan(&v, c, &whole, &RequestContext::default(), None, true, 8),
+        Plan::Accelerated(_)
+    ));
+    let a = ytdlp_args(&v, c, &whole);
+    assert!(!a.contains("--download-sections") && a.contains("--embed-chapters"));
+    // Nothing left, or less than a second.
+    assert!(prism_video::plan::part(&v, &part(700.0, 800.0)).is_none());
+    assert!(prism_video::plan::part(&v, &part(10.0, 10.5)).is_none());
+    // A live stream has no fixed length to cut.
+    let mut live = v.clone();
+    live.is_live = true;
+    assert!(prism_video::plan::part(&live, &part(10.0, 20.0)).is_none());
+    assert!(!ytdlp_args(&live, c, &part(10.0, 20.0)).contains("--download-sections"));
 }

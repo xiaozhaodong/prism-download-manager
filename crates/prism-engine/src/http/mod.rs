@@ -4,6 +4,7 @@ pub(crate) mod auth;
 pub(crate) mod client;
 pub(crate) mod download;
 pub(crate) mod fetcher;
+pub(crate) mod remote;
 
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -201,6 +202,8 @@ pub(crate) struct HttpCtx {
     /// See [`crate::DownloadRequest::expect_file`].
     pub expect_file: bool,
     pub source_generation: Arc<AtomicU64>,
+    /// See [`crate::DownloadRequest::window`].
+    pub window: Option<(u64, u64)>,
 }
 
 impl HttpCtx {

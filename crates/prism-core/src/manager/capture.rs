@@ -56,6 +56,9 @@ pub struct NewItem {
 pub(crate) struct PendingCapture {
     pub info: CaptureInfo,
     pub item: NewItem,
+    /// "What's inside" a ZIP: its files once listed, and the files downloaded on their own,
+    /// which stop when the capture goes away.
+    pub peek: super::peek::PeekSlot,
 }
 
 /// The user's answer in the "Download File" dialog.
@@ -106,6 +109,8 @@ pub struct VideoDecision {
     pub context: Option<serde_json::Value>,
     /// Playlists: download the entries one after another (the "One at a time" queue).
     pub one_at_a_time: bool,
+    /// A single video: only this part of it ("from 1:23 to 2:45").
+    pub section: Option<prism_video::Section>,
 }
 
 /// One playlist entry picked in the video dialog. A plain URL string is accepted too.
@@ -278,7 +283,8 @@ impl Core {
             added_at: now_ms(),
             last_try_at: None,
             finished_at: None,
-            resumable: None,
+            // yt-dlp's ffmpeg doesn't continue a cut: a paused part of a video starts over.
+            resumable: n.media.as_ref().and_then(|m| m.section).map(|_| false),
             connections: settings.downloads.default_connections,
             speed_limit: 0,
             checksum: n.checksum.clone(),
@@ -427,6 +433,7 @@ impl Core {
             PendingCapture {
                 info: info.clone(),
                 item: n,
+                peek: Default::default(),
             },
         );
         self.emit(CoreEvent::CaptureRequested(info.clone()));
@@ -513,6 +520,8 @@ impl Core {
             if username.is_some() {
                 p.item.username = username;
                 p.item.password = password;
+                // Listed again with the new credentials.
+                p.peek.forget_listing();
             }
             p.info.probing = true;
             p.info.probe_error = None;
@@ -687,12 +696,25 @@ impl Core {
         streams: Vec<SniffedStream>,
         preselected: Option<String>,
     ) -> VideoCapture {
+        self.open_video_with(page_url, title, streams, preselected, None)
+    }
+
+    /// [`Self::open_video`] for a request from a browser tab, with its session.
+    fn open_video_with(
+        &self,
+        page_url: String,
+        title: Option<String>,
+        streams: Vec<SniffedStream>,
+        preselected: Option<String>,
+        browser: Option<BrowserSession>,
+    ) -> VideoCapture {
         let v = VideoCapture {
             id: new_id(),
             page_url,
             title,
             streams,
             preselected,
+            browser,
         };
         self.0.state.lock().videos.insert(v.id.clone(), v.clone());
         self.emit(CoreEvent::VideoRequested(v.clone()));
@@ -705,6 +727,30 @@ impl Core {
 
     pub fn cancel_video(&self, id: &str) {
         self.0.state.lock().videos.remove(id);
+    }
+
+    /// Formats of a video page for the Download video window: with the browser tab's session
+    /// when the window was opened from it (age-restricted and members' videos), otherwise none
+    /// (yt-dlp still reads the "Cookies from browser" setting itself).
+    pub async fn probe_video_for_window(&self, page_url: &str) -> Result<serde_json::Value> {
+        let browser = self
+            .0
+            .state
+            .lock()
+            .videos
+            .values()
+            .find(|v| v.page_url == page_url && v.browser.is_some())
+            .and_then(|v| v.browser.clone());
+        let ctx = match browser {
+            Some(b) => prism_video::RequestContext {
+                cookies: b.cookies,
+                user_agent: b.user_agent,
+                referer: Some(page_url.to_string()),
+                ..Default::default()
+            },
+            None => Default::default(),
+        };
+        self.probe_video(page_url, ctx).await
     }
 
     /// Resolve formats of a video page (yt-dlp).
@@ -744,6 +790,7 @@ impl Core {
                 .and_then(|u| u.host_str().map(String::from)),
             page_url: Some(url.clone()),
             playlist_index: None,
+            section: None,
         };
         let title = media.title.clone().unwrap_or_else(|| "Video".into());
         let ext = jobs::video_ext(choice, options, settings);
@@ -774,9 +821,23 @@ impl Core {
     /// (used for playlist/batch entries, where showing one dialog per entry would be
     /// impractical). The single-video "video" IPC handler goes through `capture()` instead,
     /// so the user can still rename/relocate before it starts.
-    pub fn confirm_video(&self, d: VideoDecision) -> Result<Vec<DownloadItem>> {
-        if !d.capture_id.is_empty() {
-            self.0.state.lock().videos.remove(&d.capture_id);
+    pub fn confirm_video(&self, mut d: VideoDecision) -> Result<Vec<DownloadItem>> {
+        let pending = if d.capture_id.is_empty() {
+            None
+        } else {
+            self.0.state.lock().videos.remove(&d.capture_id)
+        };
+        // Opened from the in-page button: download with that tab's session.
+        if d.context.is_none()
+            && let Some(VideoCapture {
+                page_url,
+                browser: Some(b),
+                ..
+            }) = pending
+        {
+            d.context = Some(serde_json::json!({
+                "cookies": b.cookies, "userAgent": b.user_agent, "referer": page_url,
+            }));
         }
         let settings = self.settings();
         let playlist = !d.entries.is_empty();
@@ -825,6 +886,9 @@ impl Core {
                 d.thumbnail.clone(),
                 d.duration,
             );
+            if let Some(part) = d.section.and_then(|s| s.part_of(d.duration)) {
+                only_part(&mut n, part);
+            }
             n.save_dir = d.save_dir.clone();
             vec![n]
         };
@@ -1393,6 +1457,23 @@ impl Core {
                     let duration = info.get("duration").and_then(|v| v.as_f64());
                     let context = serde_json::json!({"cookies": s("cookies"), "userAgent": s("userAgent"), "referer": page_url});
                     let settings = self.settings();
+                    // With the confirmation on: the Download video window with this quality
+                    // picked — "Only a part", the folder and the other options are there, and
+                    // the qualities show at once (the menu's probe is kept). It brings the tab's
+                    // session along for its probe and the download.
+                    if settings.general.show_capture_dialog {
+                        let v = self.open_video_with(
+                            page_url,
+                            title,
+                            Vec::new(),
+                            Some(format_id),
+                            Some(BrowserSession {
+                                cookies: s("cookies"),
+                                user_agent: s("userAgent"),
+                            }),
+                        );
+                        return serde_json::json!({"ok": true, "accepted": true, "downloadId": v.id});
+                    }
                     let n = self.video_item(
                         &settings,
                         page_url.clone(),
@@ -1403,24 +1484,17 @@ impl Core {
                         thumbnail,
                         duration,
                     );
-                    // Same "Download File" dialog (file name / save location / category) every
-                    // other capture goes through, same `showCaptureDialog` setting — matches
-                    // IDM's "Download File Info" confirmation instead of starting right away.
-                    return if settings.general.show_capture_dialog {
-                        let info = self.capture(n, CaptureSource::Browser);
-                        serde_json::json!({"ok": true, "accepted": true, "downloadId": info.id})
+                    // The confirmation is off: it starts right away.
+                    let mode = if settings.downloads.auto_start {
+                        StartMode::Now
                     } else {
-                        let mode = if settings.downloads.auto_start {
-                            StartMode::Now
-                        } else {
-                            StartMode::Later
-                        };
-                        match self.add_items(vec![n], mode) {
-                            Ok(items) => {
-                                serde_json::json!({"ok": true, "accepted": true, "downloadId": items.first().map(|i| i.id.clone())})
-                            }
-                            Err(e) => fail("app_error", e.to_string()),
+                        StartMode::Later
+                    };
+                    return match self.add_items(vec![n], mode) {
+                        Ok(items) => {
+                            serde_json::json!({"ok": true, "accepted": true, "downloadId": items.first().map(|i| i.id.clone())})
                         }
+                        Err(e) => fail("app_error", e.to_string()),
                     };
                 }
                 // One sniffed stream (HLS/DASH/direct) chosen in the page menu or popup.
@@ -1499,7 +1573,16 @@ impl Core {
                         }
                     };
                 }
-                self.open_video(page_url, s("title"), Vec::new(), None);
+                self.open_video_with(
+                    page_url,
+                    s("title"),
+                    Vec::new(),
+                    None,
+                    Some(BrowserSession {
+                        cookies: s("cookies"),
+                        user_agent: s("userAgent"),
+                    }),
+                );
                 serde_json::json!({"ok": true, "accepted": true})
             }
             _ => fail("bad_request", format!("unknown message type '{ty}'")),
@@ -1780,6 +1863,29 @@ mod tests {
 /// `01 - Name.mkv`: a playlist video's file name with its position, `width` digits at least.
 pub(crate) fn numbered_name(name: &str, index: u32, width: usize) -> String {
     format!("{index:0width$} - {name}")
+}
+
+/// Makes a video item download only `part`: the job keeps the range (retries and resumes cut the
+/// same part), the list shows it, and the file is named apart from the whole video:
+/// `Title [id] (1m23s–2m45s).mp4`.
+pub(crate) fn only_part(n: &mut NewItem, part: prism_video::Section) {
+    if let Some(name) = n.file_name.as_mut() {
+        let path = std::path::Path::new(name.as_str());
+        let stem = path
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        *name = match path.extension() {
+            Some(ext) => format!("{stem}{}.{}", part.file_suffix(), ext.to_string_lossy()),
+            None => format!("{stem}{}", part.file_suffix()),
+        };
+    }
+    if let Some(req) = n.request.as_mut().and_then(|r| r.as_object_mut()) {
+        req.insert("section".into(), serde_json::json!(part));
+    }
+    if let Some(m) = n.media.as_mut() {
+        m.section = Some(part);
+    }
 }
 
 pub(crate) fn render_name_template(template: &str, title: &str, id: Option<&str>) -> String {

@@ -42,9 +42,6 @@ const save = (patch: DeepPartial<Settings>) => void patchSettings(patch);
 const DEFAULT_HUB = "https://huggingface.co";
 const MIRROR = "https://hf-mirror.com";
 
-/** The Dock exists only on macOS. */
-const IS_MAC = /Mac/i.test(navigator.userAgent);
-
 export function SettingsSheet({ section }: { section?: string }) {
   const [cur, setCur] = useState(section ?? "general");
   const [q, setQ] = useState("");
@@ -125,13 +122,8 @@ function SectionBody({ id, s }: { id: string; s: Settings }) {
             />
             <Toggle title={t("Start minimized")} value={s.general.startMinimized} onChange={(v) => save({ general: { startMinimized: v } })} />
             <Toggle title={t("Close button hides to the tray")} hint={t("Downloads keep running; quit from the tray menu")} value={s.general.closeToTray} onChange={(v) => save({ general: { closeToTray: v } })} />
-            {IS_MAC && (
-              <Toggle
-                title={t("Show the Dock icon")}
-                hint={t("Off = Prism lives in the menu bar only; open it from there or by opening Prism again")}
-                value={s.general.showDockIcon}
-                onChange={(v) => save({ general: { showDockIcon: v } })}
-              />
+            {document.documentElement.dataset.os === "mac" && (
+              <Toggle title={t("Hide the Dock icon")} hint={t("While Prism waits in the menu bar. The icon is back while its window is open")} value={s.general.hideDockIcon} onChange={(v) => save({ general: { hideDockIcon: v } })} />
             )}
           </Group>
           <Group title={t("Windows")}>

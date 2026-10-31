@@ -1,36 +1,75 @@
-# Prism 1.1.7 — One beam. Many rays.
+# Prism 1.2.2 — One beam. Many rays.
 
 A fast, open-source download manager for Windows, Linux and macOS, with browser integration
 and video downloads.
 
-## What's new in 1.1.7
+## What's new in 1.2.2
 
-* **AI models from Hugging Face** ([#29](https://github.com/FortoGraphy/prism-download-manager/issues/29)).
-  Download a model by its name (like `Qwen/Qwen3-8B`), a link or a search: the new model button in
-  the toolbar, or Settings › AI models. Prism lists the model's files and picks the ones you need:
-  one version of a GGUF model (Q4_K_M unless you choose another), or the weights in one format with
-  the configs and tokenizer beside them. The files go into a *Hugging Face* queue and download one
-  after another, each over many connections, and every weights file is checked against the SHA-256
-  Hugging Face lists. Files you already have are skipped.
-  * Gated and private models work with an access token (Prism also uses the one `hf auth login`
-    saved). The token goes only to the Hugging Face server, never to the download servers it
-    redirects to, and it isn't stored with the downloads.
-  * The server can be a mirror such as hf-mirror.com (or `HF_ENDPOINT`).
-  * A link to a model's page opens the model window; a link to a file's page downloads the file.
-  * Thanks to Vasili-Sk for the idea!
-* **Turkish** ([#31](https://github.com/FortoGraphy/prism-download-manager/issues/31)): 9 languages
-  now. Thanks to merihfiliz for asking!
-* **Windows on Linux** ([#30](https://github.com/FortoGraphy/prism-download-manager/issues/30)): on KDE
-  Plasma, a Prism window sometimes stayed empty. Windows are now shown as soon as they are created,
-  as on macOS, instead of after their first paint.
-* **The window's background matches the theme**
-  ([#21](https://github.com/FortoGraphy/prism-download-manager/issues/21)). On Linux (and Windows 10),
-  where there's no glass behind the window, the window turned see-through and showed the desktop
-  behind the light or dark theme; it now keeps its own background. On Windows 11 the glass now also
-  switches when Windows changes between light and dark while Prism is open.
-* Linux and macOS: if Prism was ended while downloading (a crash, or killed), the computer could
-  stay unable to sleep until a restart. Keeping it awake now ends together with Prism.
+* **Parts of videos download much faster.** *Only a part* had ffmpeg fetch the part over a single
+  connection, which YouTube slows down. Prism now reads the index at the start of the video,
+  downloads only the pieces around the part over several connections, and cuts it out on the
+  exact frame. A minute of 1080p60 takes about 10 seconds instead of 25–30, and the difference
+  grows with 4K and slower connections. A video without such an index (some sites) is cut the
+  way it was before.
+* **Updating on Windows no longer stops with an error.** With a browser open, the update could
+  fail to replace the browser helper (`prism-native-host.exe`), which the browser starts again
+  right after the installer stops it, and showed *Error opening file for writing*. The installer
+  now moves the running helper aside and puts the new one in its place; the old copy is removed
+  with the next update.
+* Starting a queue could, rarely, mark it finished at once and leave its downloads waiting in a
+  stopped queue.
+
+## What's new in 1.2.1
+
+* **The Download button next to a video opens the Download video window.** A quality picked in
+  the browser's menu (or with right-click › Download with Prism on a video) now opens Prism's
+  *Download video* window with that quality picked, so *Only a part*, the folder and the other
+  options are there too. Before, it went to the plain *Download file* window. The window uses the
+  browser tab's session, so age-restricted and members' videos work as before. With *Show the
+  Download File dialog* off, the download still starts right away.
+
+## What's new in 1.2.0
+
+* **Convert and make smaller.** A new *Tools* section in the sidebar, *Convert to* and *Make
+  smaller* in a finished download's menu, and two buttons in the *Download complete* window.
+  * **Convert** pictures (also iPhone HEIC photos), music and videos: MP3, WAV, FLAC, M4A, JPG,
+    PNG, WebP, MP4, WebM, GIF for short clips, or just the sound of a video as MP3. Several files
+    at once can also be packed into a ZIP.
+  * **Make smaller** pictures, music and videos to fit Discord (20 MB), e-mail (25 MB), WhatsApp
+    (16 MB) or a size you choose. Before it starts, Prism shows the resulting size, resolution and
+    quality, and says so when a file is too long to look good at that size. The result is checked
+    and made again smaller if it came out too big.
+  * The new file is saved next to the original, which stays as it is. Prism uses its own ffmpeg
+    (downloaded on first use, like for videos).
+* **Just a part of a video.** In the *Download video* window, choose *Only a part* and pick the
+  start and end with the two handles or by typing the times, or click a chapter. Prism downloads
+  only that part, cut exactly, as a video or as MP3.
+* **What's inside a ZIP.** The *Download file* window shows the folders and files in a ZIP before
+  you download it, reading only a few kilobytes from its end. One file can be downloaded on its
+  own, without the rest of the archive.
+* **Finished downloads show as finished**
+  ([#41](https://github.com/FortoGraphy/prism-download-manager/issues/41)): a download that
+  finished while the window was open could still look like it was downloading until the window was
+  opened again. Thanks to nckrkllkc for the report!
+* The sidebar fades out at its bottom edge when there's more below (Grabber, Trash).
+* Cancelling a download and deleting its file is quicker: Prism no longer writes the file to disk
+  first.
 * The Chrome Web Store extension (1.1.0) keeps working as it is; nothing to update there.
+
+### Prism 1.1.8
+
+* Lists of links open once ([#37](https://github.com/FortoGraphy/prism-download-manager/issues/37)),
+  Linux: WebKit's previous renderer against empty windows on KDE Plasma and memory given back after
+  long downloads ([#36](https://github.com/FortoGraphy/prism-download-manager/issues/36),
+  [#40](https://github.com/FortoGraphy/prism-download-manager/issues/40)), and *Hide the Dock icon*
+  on the Mac ([#34](https://github.com/FortoGraphy/prism-download-manager/issues/34)).
+
+### Prism 1.1.7
+
+* AI models from Hugging Face ([#29](https://github.com/FortoGraphy/prism-download-manager/issues/29)),
+  Turkish ([#31](https://github.com/FortoGraphy/prism-download-manager/issues/31)), Linux windows
+  shown on creation ([#30](https://github.com/FortoGraphy/prism-download-manager/issues/30)), and a
+  window background that matches the theme.
 
 ### Prism 1.1.6
 

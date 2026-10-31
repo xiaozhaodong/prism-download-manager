@@ -10,7 +10,7 @@ use prism_engine::{
     AuthScheme, ChecksumAlgo, ConflictPolicy, Credentials, DownloadEvent, DownloadState,
     EngineError, ExpectedChecksum, HttpMethod, ResumeState, SegmentStatus, Url,
 };
-use prism_testserver::{LimitMode, ServerConfig, expected_sha256, versioned_seed};
+use prism_testserver::{LimitMode, ServerConfig, expected_bytes, expected_sha256, versioned_seed};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn multi_segment_8_connections_with_keepalive_reuse() {
@@ -221,6 +221,59 @@ async fn redirect_chain_is_followed_and_final_url_reused() {
             .path()
             .ends_with("/file/r.bin")
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_byte_window_is_saved_as_the_whole_file() {
+    let srv = default_server().await;
+    let dir = tempfile::tempdir().unwrap();
+    let size = 6 * MIB;
+    let (from, to) = (MIB + 12_345, 5 * MIB + 777);
+    let mut req = request(
+        &srv.url(&format!("/file/w.bin?size={size}&seed=41")),
+        dir.path(),
+        4,
+    );
+    // Small requests (like YouTube's 10 MiB chunks), so the window is fetched in many ranges.
+    req.max_request_size = Some(256 * 1024);
+    req.window = Some((from, to));
+    let h = engine().start(req, None, vec![]);
+    let done = wait(&h, 60).await.unwrap();
+    assert_eq!(done.size, to - from);
+    assert!(
+        std::fs::read(&done.path).unwrap() == expected_bytes(41, from..to),
+        "the saved file is not the window's bytes"
+    );
+    // Every request asked for bytes inside the window, over several connections.
+    let ranges: Vec<(u64, u64)> = srv
+        .stats()
+        .requests
+        .iter()
+        .filter(|r| r.uri.starts_with("/file/w.bin"))
+        .map(|r| {
+            let v = r.range.as_deref().expect("a range request");
+            let (a, b) = v.trim_start_matches("bytes=").split_once('-').unwrap();
+            (a.parse().unwrap(), b.parse().unwrap())
+        })
+        .collect();
+    assert!(ranges.len() > 4, "{ranges:?}");
+    assert!(
+        ranges.iter().all(|&(a, b)| a >= from && b < to),
+        "{ranges:?}"
+    );
+
+    // A server that ignores ranges would send the whole file: that's an error, not a file.
+    let mut req = request(
+        &srv.url(&format!("/file/w2.bin?size={size}&seed=42&ranges=0")),
+        dir.path(),
+        4,
+    );
+    req.window = Some((from, to));
+    let h = engine().start(req, None, vec![]);
+    assert!(matches!(
+        wait(&h, 60).await,
+        Err(EngineError::RangeNotSupported)
+    ));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -1057,4 +1110,47 @@ async fn web_page_instead_of_the_file_is_an_error() {
     req.expect_file = true;
     let done = wait(&engine().start(req, None, vec![]), 60).await.unwrap();
     assert_eq!(sha256_file(&done.path), expected_sha256(4, size));
+}
+
+/// Parts of a file read with range requests: the first read learns the size, a transfer cut off
+/// on the way continues where it stopped, a server without ranges is told apart, and a file
+/// that changes between two reads is an error, not mixed bytes.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn remote_file_reads_parts_and_continues_where_it_stopped() {
+    init_tracing();
+    let srv = default_server().await;
+    let dir = tempfile::tempdir().unwrap();
+    let open = |path: &str| {
+        engine()
+            .remote_file(&request(&srv.url(path), dir.path(), 1))
+            .unwrap()
+    };
+    let size = 4 * MIB;
+    // Throttled, so the client has read most of a response when the server drops it (a reset
+    // throws away whatever the client hasn't read yet).
+    let mut file = open(&format!(
+        "/file/r.bin?size={size}&seed=21&drop_after=300K&throttle=4M"
+    ));
+    assert_eq!(file.size(), None);
+    let tail = file.read(size - 1000, 1000).await.unwrap();
+    assert_eq!(tail, expected_bytes(21, size - 1000..size));
+    assert_eq!(file.size(), Some(size));
+    // 1 MiB from a server that drops every response after 300 KiB.
+    let part = file.new_reader().read(1000, MIB).await.unwrap();
+    assert_eq!(part, expected_bytes(21, 1000..1000 + MIB));
+    assert!(srv.stats().requests_to("/file/r.bin") >= 5);
+
+    let mut whole = open("/file/w.bin?size=100000&ranges=0");
+    assert_eq!(
+        whole.read(0, 10).await.unwrap_err(),
+        EngineError::RangeNotSupported
+    );
+
+    let mut changing = open("/file/v.bin?size=200000");
+    changing.read(0, 10).await.unwrap();
+    srv.set_version("v.bin", 1);
+    assert_eq!(
+        changing.read(10, 10).await.unwrap_err(),
+        EngineError::ValidatorMismatch
+    );
 }

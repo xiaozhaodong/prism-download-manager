@@ -5,12 +5,13 @@ import { patchSettings } from "../../lib/actions";
 import { api } from "../../lib/api";
 import { t, tk } from "../../lib/i18n";
 import { openUrl, REPO_URL } from "../../lib/links";
+import { openTools } from "../../lib/tools";
 import { useApp } from "../../lib/store";
 import { useUi } from "../../lib/ui";
 import { versionNewer } from "../../lib/version";
 import { BrowserConnect, useExtensionStatus } from "../BrowserConnect";
 
-type Change = { icon: IconName; title: string; body: string; credit?: string; action?: "sounds" | "language" | "appearance" | "model" };
+type Change = { icon: IconName; title: string; body: string; credit?: string; action?: "sounds" | "language" | "appearance" | "model" | "tools" };
 
 /**
  * What this version brings (shown once after an update, and from About Prism), then what the
@@ -19,47 +20,46 @@ type Change = { icon: IconName; title: string; body: string; credit?: string; ac
  */
 const CHANGES: Change[] = [
   {
-    icon: "model",
-    title: tk("AI models from Hugging Face"),
-    body: tk("Download a model by its name, a link or a search. Prism picks the files you need (one GGUF version, the weights in one format) and downloads them over many connections, checked against Hugging Face."),
-    credit: "Vasili-Sk",
-    action: "model",
+    icon: "convert",
+    title: tk("Convert and make smaller"),
+    body: tk("Tools in the sidebar, in a finished download's menu and in the “Download complete” window: turn pictures, music and videos into another format, or make them small enough for Discord, e-mail or WhatsApp."),
+    action: "tools",
   },
   {
-    icon: "globe",
-    title: tk("Turkish"),
-    body: tk("Prism now speaks Turkish too."),
-    action: "language",
+    icon: "video",
+    title: tk("Just a part of a video"),
+    body: tk("Pick a quality with the Download button next to a video, or open the “Download video” window in Prism, and choose “Only a part”: where it starts and ends, or a chapter. Prism downloads only that part."),
   },
   {
-    icon: "monitor",
-    title: tk("Windows on Linux"),
-    body: tk("On KDE Plasma, Prism's windows no longer sometimes open empty."),
+    icon: "file-archive",
+    title: tk("What's inside a ZIP"),
+    body: tk("The “Download file” window shows the files in a ZIP before you download it, and can download just one of them."),
   },
   {
-    icon: "sun",
-    title: tk("Background that matches the theme"),
-    body: tk("On Linux the window no longer shows the desktop through it, and on Windows the glass switches too when Windows changes between light and dark."),
+    icon: "status-completed",
+    title: tk("Finished means finished"),
+    body: tk("A download that finished while the window was open sometimes still looked like it was downloading."),
+    credit: "nckrkllkc",
   },
 ];
 
 /** The previous version's changes, shown below the new ones. */
-const PREVIOUS = { version: "1.1.6", changes: [
+const PREVIOUS = { version: "1.1.8", changes: [
   {
-    icon: "sun",
-    title: tk("Light theme"),
-    body: tk("When the theme matches Windows, the glass behind the window is now light in the light theme too."),
+    icon: "batch",
+    title: tk("Lists of links"),
+    body: tk("A pasted list of links opens one Download links window again, not a second one that froze and couldn't be closed."),
   },
   {
-    icon: "browser",
-    title: tk("Brave Origin"),
-    body: tk("The browser extension now connects in Brave Origin too."),
+    icon: "monitor",
+    title: tk("Prism on Linux"),
+    body: tk("On KDE Plasma, a window brought back from the taskbar no longer stays empty, and Prism gives memory back after long downloads."),
   },
   {
-    icon: "video",
-    title: tk("VK and YouTube videos"),
-    body: tk("The Download video button works on vk.ru and vkvideo.ru, and videos from a browser signed in to YouTube no longer fail."),
-    credit: "BiparJoy",
+    icon: "eye",
+    title: tk("Dock icon on the Mac"),
+    body: tk("Prism can hide its Dock icon while it waits in the menu bar: Settings › General."),
+    credit: "mehdiillala",
   },
 ] satisfies Change[] };
 
@@ -77,7 +77,7 @@ export function WhatsNewSheet() {
         <BrandTile size={52} />
         <div>
           <h2>{t("Prism {version} is here", { version })}</h2>
-          <p className="text-secondary">{t("AI models from Hugging Face, Turkish, and a fix for Linux.")}</p>
+          <p className="text-secondary">{t("Convert and make smaller, just a part of a video, and a look inside ZIP files.")}</p>
         </div>
       </header>
 
@@ -147,6 +147,11 @@ function ChangeList({ changes }: { changes: Change[] }) {
               )}
               {c.action === "model" && (
                 <button type="button" className="linkbtn" onClick={() => void api.openWindow("model")}>
+                  {t("Try it")}
+                </button>
+              )}
+              {c.action === "tools" && (
+                <button type="button" className="linkbtn" onClick={() => openTools({ tab: "convert", paths: [] })}>
                   {t("Try it")}
                 </button>
               )}

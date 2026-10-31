@@ -21,6 +21,8 @@ pub(crate) static QUITTING: AtomicBool = AtomicBool::new(false);
 pub(crate) static STARTED_IN_BACKGROUND: AtomicBool = AtomicBool::new(false);
 
 fn main() {
+    limit_malloc_arenas();
+    choose_webkit_renderer();
     let args: Vec<String> = std::env::args().collect();
     let background = args
         .iter()
@@ -77,8 +79,6 @@ fn main() {
             spawn_event_forwarder(handle.clone(), core.clone());
 
             let settings = core.settings();
-            #[cfg(target_os = "macos")]
-            apply_dock_icon(&handle, &settings);
             if let Some(main) = app.get_webview_window("main") {
                 apply_window_material(&main, &settings);
                 let show = !background && !settings.general.start_minimized;
@@ -99,6 +99,7 @@ fn main() {
                     });
                 } else {
                     // Waiting in the tray: no need to keep the window's web view in memory.
+                    windows::update_dock(&handle, false);
                     windows::release_main_later(&handle);
                 }
             }
@@ -142,6 +143,7 @@ fn main() {
                 api.prevent_close();
                 if window.state::<Core>().settings().general.close_to_tray {
                     let _ = window.hide();
+                    windows::update_dock(window.app_handle(), false);
                     windows::release_main_later(window.app_handle());
                 } else {
                     // "Close button hides to the tray" is off: the close button quits Prism (it
@@ -160,6 +162,9 @@ fn main() {
             commands::confirm_capture,
             commands::cancel_capture,
             commands::reprobe_capture,
+            commands::zip_contents,
+            commands::extract_zip_file,
+            commands::cancel_zip_file,
             commands::batch_from_pattern,
             commands::batch_from_text,
             commands::get_batch,
@@ -179,6 +184,15 @@ fn main() {
             commands::hf_search,
             commands::hf_present,
             commands::hf_add,
+            commands::media_inspect,
+            commands::media_plan,
+            commands::media_start,
+            commands::media_cancel,
+            commands::media_jobs,
+            commands::media_clear,
+            commands::open_tools,
+            commands::open_file,
+            commands::reveal_path,
             commands::start_items,
             commands::pause_items,
             commands::pause_all,
@@ -309,42 +323,8 @@ pub fn apply_shell_settings(app: &AppHandle, settings: &Settings) {
     if let Some(main) = app.get_webview_window("main") {
         apply_window_material(&main, settings);
     }
-    #[cfg(target_os = "macos")]
-    apply_dock_icon(app, settings);
+    windows::update_dock(app, windows::main_is_open(app));
     tray::refresh(app);
-}
-
-/// Whether the Dock icon is showing (macOS starts every app with one).
-#[cfg(target_os = "macos")]
-static DOCK_ICON_SHOWN: AtomicBool = AtomicBool::new(true);
-
-/// Shows or hides the Dock icon ("Show the Dock icon"). Only a change is applied: macOS turns the
-/// app into a menu-bar app and back, which shouldn't happen on every settings save.
-#[cfg(target_os = "macos")]
-fn apply_dock_icon(app: &AppHandle, settings: &Settings) {
-    let show = settings.general.show_dock_icon;
-    if DOCK_ICON_SHOWN.load(Ordering::SeqCst) == show {
-        return;
-    }
-    if let Err(e) = app.set_dock_visibility(show) {
-        tracing::warn!("could not change the Dock icon: {e}");
-        return;
-    }
-    DOCK_ICON_SHOWN.store(show, Ordering::SeqCst);
-    if show {
-        return;
-    }
-    // Losing the Dock icon deactivates the app (a moment later: macOS switches the app type
-    // asynchronously), so an open main window would drop behind other apps.
-    let app = app.clone();
-    tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-        if let Some(main) = app.get_webview_window("main")
-            && main.is_visible().unwrap_or(false)
-        {
-            let _ = main.set_focus();
-        }
-    });
 }
 
 /// Whether the OS puts a material behind the window: Mica on Windows 11, vibrancy on macOS. On
@@ -474,6 +454,38 @@ fn handle_args(app: &AppHandle, argv: &[String]) {
     }
 }
 
+/// Linux (#40): glibc gives threads that allocate their own memory arenas, and memory freed in
+/// them rarely goes back to the system, so a download with 32 connections left Prism holding a
+/// few times what it used. Two arenas are plenty (measured: same speed, half the peak).
+fn limit_malloc_arenas() {
+    #[cfg(all(target_os = "linux", target_env = "gnu"))]
+    // SAFETY: mallopt only changes an allocator setting; it runs before any thread starts.
+    unsafe {
+        libc::mallopt(libc::M_ARENA_MAX, 2);
+    }
+}
+
+/// Linux (#36, #40; before them #18 and #30): WebKitGTK's DMA-BUF renderer leaves windows empty on
+/// KDE Plasma (also when one comes back from the taskbar) and holds on to memory. Prism uses
+/// WebKit's previous renderer, unless WEBKIT_DISABLE_DMABUF_RENDERER is set already
+/// (`WEBKIT_DISABLE_DMABUF_RENDERER=0` brings the DMA-BUF renderer back).
+fn choose_webkit_renderer() {
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        // SAFETY: the first thing main does, before any other thread exists.
+        unsafe { std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1") };
+    }
+}
+
+/// Linux (#40): when the last download stops, hand the memory it freed back to the system.
+fn release_free_memory() {
+    #[cfg(all(target_os = "linux", target_env = "gnu"))]
+    // SAFETY: malloc_trim only returns free heap pages to the system.
+    unsafe {
+        libc::malloc_trim(0);
+    }
+}
+
 /// Hex-encode an argument so it can travel inside a window label/route.
 fn encode_path(s: &str) -> String {
     s.bytes().map(|b| format!("{b:02x}")).collect()
@@ -491,7 +503,13 @@ fn spawn_event_forwarder(app: AppHandle, core: Core) {
         loop {
             let event = match rx.recv().await {
                 Ok(e) => e,
-                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                    // The windows missed events, perhaps a download that finished (#41): they get
+                    // the whole list again (stopped downloads drop their live progress).
+                    tracing::warn!("the windows missed {n} events; sending them the list again");
+                    let _ = app.emit("core", &CoreEvent::ItemsAdded(core.bootstrap().items));
+                    continue;
+                }
                 Err(_) => break,
             };
             side_effects(
@@ -623,6 +641,32 @@ fn side_effects(
                 tracing::error!("could not open the model window: {e}");
             }
         }
+        CoreEvent::MediaJob(job) => {
+            // A long conversion that finished while nobody was looking at Prism.
+            use prism_core::media::{JobState, MediaOp};
+            let took = job.finished_at.zip(job.started_at).map(|(b, a)| b - a);
+            let looking = app
+                .webview_windows()
+                .values()
+                .any(|w| w.is_focused().unwrap_or(false));
+            if took.is_some_and(|ms| ms >= 10_000) && !looking {
+                let output = job
+                    .output
+                    .as_ref()
+                    .and_then(|p| p.file_name())
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| job.name.clone());
+                match (job.state, &job.op) {
+                    (JobState::Done, MediaOp::Shrink { .. }) => {
+                        notify("Smaller file ready", &output)
+                    }
+                    (JobState::Done, MediaOp::Zip) => notify("ZIP file ready", &output),
+                    (JobState::Done, _) => notify("Conversion finished", &output),
+                    (JobState::Failed, _) => notify("Conversion failed", &job.name),
+                    _ => {}
+                }
+            }
+        }
         CoreEvent::ShowMain => windows::show_main(app),
         CoreEvent::ExitRequested => {
             let app = app.clone();
@@ -667,6 +711,9 @@ fn side_effects(
             let speed: u64 = list.iter().map(|p| p.speed).sum();
             let is_active = active > 0;
             if *was_active != Some(is_active) || last_tooltip.elapsed().as_secs() >= 1 {
+                if *was_active == Some(true) && !is_active {
+                    release_free_memory();
+                }
                 tray::update(app, active, speed, *was_active != Some(is_active));
                 *was_active = Some(is_active);
                 *last_tooltip = std::time::Instant::now();
@@ -681,6 +728,7 @@ fn side_effects(
     ) {
         let active = core.active_count();
         if active == 0 && *was_active == Some(true) {
+            release_free_memory();
             tray::update(app, 0, 0, true);
             *was_active = Some(false);
         }
